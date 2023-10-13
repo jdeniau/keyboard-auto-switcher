@@ -164,18 +164,8 @@ class MyApplicationContext : ApplicationContext
 
     private MyApplicationContext()
     {
-        // register input language change event 
-        // Console.WriteLine(KeyboardLayout.GetCurrent());
-
         // First start : let's init current input language
         SetNewCurrentLanguage(GetCurrentInputLanguage());
-
-        // if (GetCurrentInputLanguage() != "fr-FR")
-        // {
-
-        //     SetNewCurrentLanguage("fr-FR");
-        //     NextKeyboard();
-        // }
 
         LoopAndWaitForKeyboardChange();
     }
@@ -258,21 +248,6 @@ class MyApplicationContext : ApplicationContext
         return InputLanguage.CurrentInputLanguage.Culture.Name;
     }
 
-
-
-    private void PrintCurrentInputLanguage()
-    {
-        Console.WriteLine("The current input language is: " +
-           Application.CurrentInputLanguage.Culture.Name);
-
-        InputLanguageCollection InstalledLanguages = InputLanguage.InstalledInputLanguages;
-        foreach (InputLanguage Lang in InstalledLanguages)
-        {
-            Console.WriteLine(Lang.Culture.Name);
-        }
-    }
-
-
     /** CurrentInputLanguage setter is not working ? */
     void SetNewCurrentLanguage(string culture)
     {
@@ -296,30 +271,12 @@ class MyApplicationContext : ApplicationContext
             return;
         }
 
-        // Console.WriteLine("The next input language is: " + nextInputLanguage.LayoutName);
-
         // NOT WORKING ?
         // InputLanguage.CurrentInputLanguage = nextInputLanguage;
 
-
         // WORKING !
         InputLanguage.CurrentInputLanguage = InputLanguage.InstalledInputLanguages[InputLanguage.InstalledInputLanguages.IndexOf(nextInputLanguage)];
-        // Console.WriteLine("next current culture " + nextInputLanguage.Culture.Name);
         Thread.CurrentThread.CurrentCulture = nextInputLanguage.Culture;
-        // System.Threading.Thread.CurrentThread.CurrentCulture = culture;
-
-        // Console.WriteLine(InputLanguage.CurrentInputLanguage.Culture.Name);
-        // InputLanguageManager.Current.CurrentInputLanguage = nextInputLanguage;
-
-        // // Gets the default, and current languages.
-        // InputLanguage myDefaultLanguage = InputLanguage.DefaultInputLanguage;
-        // InputLanguage myCurrentLanguage = InputLanguage.CurrentInputLanguage;
-        // Console.WriteLine("Current input language is: " + myCurrentLanguage.Culture.EnglishName);
-        // Console.WriteLine("Default input language is: " + myDefaultLanguage.Culture.EnglishName);
-
-        // // Changes the current input language to the default, and prints the new current language.
-        // InputLanguage.CurrentInputLanguage = myDefaultLanguage;
-        // Console.WriteLine("Current input language is now: " + myDefaultLanguage.Culture.EnglishName);
     }
 
 
