@@ -1,149 +1,187 @@
 ﻿using System.Runtime.InteropServices;
+using KeyboardAutoSwitcher;
 
-/**
- * D'après https://www.codeproject.com/Articles/90218/Changing-Keyboard-Layout-2 il faut utiliser InputLanguage.CurrentInputLanguage plutôt que de charger user32.dll
- */
-
-class MyApplicationContext : ApplicationContext
+/// <summary>
+/// Application context that monitors keyboard connection and switches layouts automatically
+/// </summary>
+class KeyboardSwitcherApp : ApplicationContext
 {
-    private MyApplicationContext()
-    {
-        // First start : let's init current input language
-        SetNewCurrentLanguage(GetCurrentInputLanguage());
+    // Win32 API imports
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
 
-        LoopAndWaitForKeyboardChange();
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetKeyboardLayout(uint idThread);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr ActivateKeyboardLayout(IntPtr hkl, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern int GetKeyboardLayoutList(int nBuff, [Out] IntPtr[] lpList);
+
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    // Constants
+    private const uint KLF_ACTIVATE = 0x00000001;
+    private const uint WM_INPUTLANGCHANGEREQUEST = 0x0050;
+    private const int HWND_BROADCAST = 0xFFFF;
+    private const int POLLING_INTERVAL_MS = 5000;
+
+    private KeyboardSwitcherApp()
+    {
+        MonitorKeyboardAndSwitchLayout();
     }
 
-    private void LoopAndWaitForKeyboardChange()
+    /// <summary>
+    /// Main monitoring loop - checks keyboard status and switches layout accordingly
+    /// </summary>
+    private void MonitorKeyboardAndSwitchLayout()
     {
-        do
+        while (true)
         {
-            if (IsKeyboardConnected())
+            KeyboardLayoutConfig? currentLayout = GetCurrentKeyboardLayout();
+            bool isExternalKeyboardConnected = IsKeyboardConnected();
+
+            KeyboardLayoutConfig targetLayout = isExternalKeyboardConnected
+                ? KeyboardLayouts.UsDvorak
+                : KeyboardLayouts.FrenchStandard;
+
+            Console.WriteLine(isExternalKeyboardConnected
+                ? "✓ External keyboard detected"
+                : "✗ No external keyboard");
+
+            if (currentLayout == null || currentLayout.LayoutId != targetLayout.LayoutId)
             {
-                Console.WriteLine("Keyboard is connected.");
-
-                // new KeyboardLayout(CultureInfo.GetCultureInfo("en-US")).Activate();
-
-                if (GetCurrentInputLanguage() != "en-US")
-                {
-                    Console.WriteLine("not en-US, switching…");
-
-                    SetNewCurrentLanguage("en-US");
-                    NextKeyboard();
-                }
+                Console.WriteLine($"→ Switching to {targetLayout.DisplayName}...");
+                SetKeyboardLayout(targetLayout);
             }
             else
             {
-                Console.WriteLine("Keyboard is not connected.");
-
-                // new KeyboardLayout(CultureInfo.GetCultureInfo("fr-FR")).Activate();
-
-                if (GetCurrentInputLanguage() != "fr-FR")
-                {
-                    Console.WriteLine("not fr-FR, switching…");
-
-                    SetNewCurrentLanguage("fr-FR");
-                    NextKeyboard();
-                }
+                Console.WriteLine($"✓ Already using {currentLayout.DisplayName}");
             }
 
-            // sleep 5 seconds
-            System.Threading.Thread.Sleep(5000);
-        } while (true);
+            Thread.Sleep(POLLING_INTERVAL_MS);
+        }
     }
 
-
-    [DllImport("user32.dll")]
-    private static extern void keybd_event(byte bVk, byte bScan, int dwFlags, int dwExtraInfo);
-
-
-
-    private const int KEYEVENTF_EXTENDEDKEY = 1;
-    private const int KEYEVENTF_KEYUP = 2;
-
-    public void NextKeyboard()
+    /// <summary>
+    /// Get the current keyboard layout configuration
+    /// </summary>
+    private KeyboardLayoutConfig? GetCurrentKeyboardLayout()
     {
+        // Get the foreground window handle
+        IntPtr hwnd = GetForegroundWindow();
 
-        KeyDown(Keys.LWin);
-        KeyDown(Keys.Space);
-        KeyUp(Keys.Space);
-        KeyUp(Keys.LWin);
-    }
+        // Get the thread ID of the foreground window
+        uint threadId = GetWindowThreadProcessId(hwnd, IntPtr.Zero);
 
-    public void KeyDown(Keys vKey)
-    {
-        keybd_event((byte)vKey, 0, KEYEVENTF_EXTENDEDKEY, 0);
-    }
+        // Get the keyboard layout for that thread
+        IntPtr hkl = GetKeyboardLayout(threadId);
+        int layoutId = (int)hkl;
 
-    public void KeyUp(Keys vKey)
-    {
-        keybd_event((byte)vKey, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
-    }
+        // Try exact match first, then fallback to language ID
+        KeyboardLayoutConfig? layout = KeyboardLayouts.GetByLayoutId(layoutId)
+            ?? KeyboardLayouts.GetByLanguageId(layoutId & 0xFFFF);
 
-    private string GetCurrentInputLanguage()
-    {
         Console.WriteLine(
-            "Current language is: [input] " +
-            InputLanguage.CurrentInputLanguage.Culture.Name +
-            " [thread] " +
-            Thread.CurrentThread.CurrentCulture.Name
+            $"Current layout: 0x{layoutId:X8} => " +
+            (layout != null ? layout.DisplayName : $"Unknown (lang: {(layoutId & 0xFFFF):X4})")
         );
 
-        return InputLanguage.CurrentInputLanguage.Culture.Name;
+        return layout;
     }
 
-    /** CurrentInputLanguage setter is not working ? */
-    void SetNewCurrentLanguage(string culture)
+    /// <summary>
+    /// Set the current keyboard layout
+    /// </summary>
+    private void SetKeyboardLayout(KeyboardLayoutConfig targetLayoutConfig)
     {
+        // Get all installed layouts and find the target one
+        int layoutCount = GetKeyboardLayoutList(0, Array.Empty<IntPtr>());
+        IntPtr[] layoutHandles = new IntPtr[layoutCount];
+        GetKeyboardLayoutList(layoutCount, layoutHandles);
 
-        if (InputLanguage.CurrentInputLanguage.Culture.Name == culture)
+        Console.WriteLine($"Looking for layout: {targetLayoutConfig.DisplayName} (0x{targetLayoutConfig.LayoutId:X8})");
+        Console.WriteLine("Available layouts:");
+        foreach (IntPtr hkl in layoutHandles)
         {
-            Console.WriteLine("The current input language is already: " + culture + ", do nothing.");
+            KeyboardLayoutConfig? knownLayout = KeyboardLayouts.GetByLayoutId((int)hkl);
+            string layoutName = knownLayout != null ? knownLayout.DisplayName : "Unknown";
+            Console.WriteLine($"  0x{(int)hkl:X8} - {layoutName}");
+        }
+
+        IntPtr targetLayout = FindLayoutHandle(layoutHandles, targetLayoutConfig);
+
+        if (targetLayout == IntPtr.Zero)
+        {
+            Console.Error.WriteLine($"❌ Layout not installed: {targetLayoutConfig.DisplayName}");
             return;
         }
 
-        InputLanguage? nextInputLanguage = InputLanguage.InstalledInputLanguages
-            .OfType<InputLanguage>()
-            .Where(l => l.Culture.Name == culture)
-            .FirstOrDefault();
+        Console.WriteLine($"Activating layout: 0x{(int)targetLayout:X8}");
 
+        // First, activate the layout for current thread
+        ActivateKeyboardLayout(targetLayout, KLF_ACTIVATE);
 
-        if (nextInputLanguage == null)
+        // Then, broadcast the change to all windows
+        IntPtr foregroundWindow = GetForegroundWindow();
+        if (foregroundWindow != IntPtr.Zero)
         {
-            Console.Error.WriteLine("The culture " + culture + " is not installed on this computer.");
-
-            return;
+            PostMessage(foregroundWindow, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, targetLayout);
         }
 
-        // NOT WORKING ?
-        // InputLanguage.CurrentInputLanguage = nextInputLanguage;
+        PostMessage((IntPtr)HWND_BROADCAST, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, targetLayout);
 
-        // WORKING !
-        InputLanguage.CurrentInputLanguage = InputLanguage.InstalledInputLanguages[InputLanguage.InstalledInputLanguages.IndexOf(nextInputLanguage)];
-        Thread.CurrentThread.CurrentCulture = nextInputLanguage.Culture;
+        Console.WriteLine($"✓ Switched to: {targetLayoutConfig.DisplayName}");
     }
 
+    /// <summary>
+    /// Find the handle for a specific layout configuration
+    /// </summary>
+    private IntPtr FindLayoutHandle(IntPtr[] layoutHandles, KeyboardLayoutConfig targetLayoutConfig)
+    {
+        // Try exact match first
+        foreach (IntPtr hkl in layoutHandles)
+        {
+            if ((int)hkl == targetLayoutConfig.LayoutId)
+            {
+                return hkl;
+            }
+        }
 
+        // Fallback: match by language ID only (lower 16 bits)
+        int targetLangId = targetLayoutConfig.GetLanguageId();
+        Console.WriteLine($"Exact layout not found, searching by language ID: 0x{targetLangId:X4}");
+
+        foreach (IntPtr hkl in layoutHandles)
+        {
+            if (((int)hkl & 0xFFFF) == targetLangId)
+            {
+                Console.WriteLine($"Found layout by language ID: 0x{(int)hkl:X8}");
+                return hkl;
+            }
+        }
+
+        return IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// Check if an external USB keyboard is connected
+    /// </summary>
     private bool IsKeyboardConnected()
     {
         var usbDevices = USBDeviceInfo.GetUSBDevices();
-
-        return usbDevices.Where(d => d.PnpDeviceID.StartsWith(USBDeviceInfo.KeyboardInstanceName)).Any();
+        return usbDevices.Any(d => d.PnpDeviceID.StartsWith(USBDeviceInfo.KeyboardInstanceName));
     }
-
-
 
     [STAThread]
     static void Main(string[] args)
     {
-
-        // Create the MyApplicationContext, that derives from ApplicationContext,
-        // that manages when the application should exit.
-
-        MyApplicationContext context = new MyApplicationContext();
-
-        // Run the application with the specific context. It will exit when
-        // all forms are closed.
+        KeyboardSwitcherApp context = new KeyboardSwitcherApp();
         Application.Run(context);
     }
 }
