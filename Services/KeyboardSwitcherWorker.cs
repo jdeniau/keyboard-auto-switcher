@@ -1,5 +1,4 @@
 using System.Management;
-using System.Runtime.InteropServices;
 using KeyboardAutoSwitcher;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,22 +12,8 @@ namespace KeyboardAutoSwitcher.Services;
 /// </summary>
 public class KeyboardSwitcherWorker : BackgroundService
 {
-    // Win32 API imports
-    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
-    [DllImport("user32.dll")] private static extern IntPtr GetKeyboardLayout(uint idThread);
-    [DllImport("user32.dll")] private static extern IntPtr ActivateKeyboardLayout(IntPtr hkl, uint flags);
-    [DllImport("user32.dll")] private static extern int GetKeyboardLayoutList(int nBuff, [Out] IntPtr[] lpList);
-    [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    // Constants
-    private const uint KLF_ACTIVATE = 0x00000001;
-    private const uint WM_INPUTLANGCHANGEREQUEST = 0x0050;
-    private const int HWND_BROADCAST = 0xFFFF;
-
     private readonly ILogger<KeyboardSwitcherWorker> _logger;
     private ManagementEventWatcher? _usbWatcher;
-    private IntPtr[]? _cachedLayoutHandles; // Cache to avoid repeated allocations
 
     public KeyboardSwitcherWorker(ILogger<KeyboardSwitcherWorker> logger)
     {
@@ -40,7 +25,7 @@ public class KeyboardSwitcherWorker : BackgroundService
         _logger.LogInformation("Keyboard Auto Switcher worker starting (event-based monitoring)");
 
         // Initialize layout cache
-        RefreshLayoutCache();
+        KeyboardLayout.RefreshLayoutCache();
 
         // Check initial state
         CheckAndSwitchLayout();
@@ -142,7 +127,8 @@ public class KeyboardSwitcherWorker : BackgroundService
     {
         try
         {
-            KeyboardLayoutConfig? currentLayout = GetCurrentKeyboardLayout();
+            KeyboardLayoutConfig? currentLayout = KeyboardLayout.GetCurrentLayout();
+            int currentLayoutId = KeyboardLayout.GetCurrentLayoutId();
             bool isExternalKeyboardConnected = USBDeviceInfo.IsTargetKeyboardConnected();
 
             KeyboardLayoutConfig targetLayout = isExternalKeyboardConnected
@@ -152,6 +138,9 @@ public class KeyboardSwitcherWorker : BackgroundService
             _logger.LogInformation(isExternalKeyboardConnected
                 ? "External keyboard detected"
                 : "No external keyboard");
+
+            _logger.LogInformation("Current layout: 0x{LayoutId:X8} => {Layout}", currentLayoutId,
+                currentLayout != null ? currentLayout.DisplayName : $"Unknown (lang: {(currentLayoutId & 0xFFFF):X4})");
 
             if (currentLayout == null || currentLayout.LayoutId != targetLayout.LayoutId)
             {
@@ -192,94 +181,33 @@ public class KeyboardSwitcherWorker : BackgroundService
         }
     }
 
-    private void RefreshLayoutCache()
-    {
-        int layoutCount = GetKeyboardLayoutList(0, Array.Empty<IntPtr>());
-        _cachedLayoutHandles = new IntPtr[layoutCount];
-        GetKeyboardLayoutList(layoutCount, _cachedLayoutHandles);
-        _logger.LogDebug("Layout cache refreshed: {Count} layouts available", layoutCount);
-    }
-
-    private KeyboardLayoutConfig? GetCurrentKeyboardLayout()
-    {
-        IntPtr hwnd = GetForegroundWindow();
-        uint threadId = GetWindowThreadProcessId(hwnd, IntPtr.Zero);
-        IntPtr hkl = GetKeyboardLayout(threadId);
-        int layoutId = (int)hkl;
-
-        KeyboardLayoutConfig? layout = KeyboardLayouts.GetByLayoutId(layoutId)
-            ?? KeyboardLayouts.GetByLanguageId(layoutId & 0xFFFF);
-
-        _logger.LogInformation("Current layout: 0x{LayoutId:X8} => {Layout}", layoutId,
-            layout != null ? layout.DisplayName : $"Unknown (lang: {(layoutId & 0xFFFF):X4})");
-
-        return layout;
-    }
-
     private void SetKeyboardLayout(KeyboardLayoutConfig targetLayoutConfig)
     {
-        // Refresh cache if needed (e.g., if user installs new keyboard layouts)
-        if (_cachedLayoutHandles == null || _cachedLayoutHandles.Length == 0)
-        {
-            RefreshLayoutCache();
-        }
-
         _logger.LogDebug("Looking for layout: {Layout} (0x{LayoutId:X8})", targetLayoutConfig.DisplayName, targetLayoutConfig.LayoutId);
 
         if (_logger.IsEnabled(LogLevel.Debug))
         {
-            foreach (IntPtr hkl in _cachedLayoutHandles!)
+            var cachedLayouts = KeyboardLayout.GetCachedLayoutHandles();
+            if (cachedLayouts != null)
             {
-                KeyboardLayoutConfig? knownLayout = KeyboardLayouts.GetByLayoutId((int)hkl);
-                string layoutName = knownLayout != null ? knownLayout.DisplayName : "Unknown";
-                _logger.LogDebug("  0x{HKL:X8} - {LayoutName}", (int)hkl, layoutName);
+                foreach (IntPtr hkl in cachedLayouts)
+                {
+                    KeyboardLayoutConfig? knownLayout = KeyboardLayouts.GetByLayoutId((int)hkl);
+                    string layoutName = knownLayout != null ? knownLayout.DisplayName : "Unknown";
+                    _logger.LogDebug("  0x{HKL:X8} - {LayoutName}", (int)hkl, layoutName);
+                }
             }
         }
 
-        IntPtr targetLayout = FindLayoutHandle(_cachedLayoutHandles!, targetLayoutConfig);
-        if (targetLayout == IntPtr.Zero)
+        try
         {
-            _logger.LogWarning("Layout not installed: {Layout}", targetLayoutConfig.DisplayName);
-            return;
+            _logger.LogInformation("Activating layout: 0x{LayoutId:X8}", targetLayoutConfig.LayoutId);
+            KeyboardLayout.ActivateLayout(targetLayoutConfig);
+            _logger.LogInformation("Switched to: {Layout}", targetLayoutConfig.DisplayName);
         }
-
-        _logger.LogInformation("Activating layout: 0x{HKL:X8}", (int)targetLayout);
-
-        ActivateKeyboardLayout(targetLayout, KLF_ACTIVATE);
-
-        IntPtr foregroundWindow = GetForegroundWindow();
-        if (foregroundWindow != IntPtr.Zero)
+        catch (InvalidOperationException ex)
         {
-            PostMessage(foregroundWindow, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, targetLayout);
+            _logger.LogWarning(ex.Message);
         }
-        PostMessage((IntPtr)HWND_BROADCAST, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, targetLayout);
-
-        _logger.LogInformation("Switched to: {Layout}", targetLayoutConfig.DisplayName);
     }
-
-    private IntPtr FindLayoutHandle(IntPtr[] layoutHandles, KeyboardLayoutConfig targetLayoutConfig)
-    {
-        foreach (IntPtr hkl in layoutHandles)
-        {
-            if ((int)hkl == targetLayoutConfig.LayoutId)
-            {
-                return hkl;
-            }
-        }
-
-        int targetLangId = targetLayoutConfig.GetLanguageId();
-        _logger.LogInformation("Exact layout not found, searching by language ID: 0x{LangId:X4}", targetLangId);
-
-        foreach (IntPtr hkl in layoutHandles)
-        {
-            if (((int)hkl & 0xFFFF) == targetLangId)
-            {
-                _logger.LogInformation("Found layout by language ID: 0x{HKL:X8}", (int)hkl);
-                return hkl;
-            }
-        }
-
-        return IntPtr.Zero;
-    }
-
 }
