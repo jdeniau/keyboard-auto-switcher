@@ -3,12 +3,13 @@ using System.Runtime.InteropServices;
 using KeyboardAutoSwitcher;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 
 namespace KeyboardAutoSwitcher.Services;
 
 /// <summary>
 /// Background worker that monitors keyboard connection and switches layouts automatically
-/// Uses event-based USB monitoring instead of polling for better performance
+/// Uses event-based USB monitoring and power events instead of polling for better performance
 /// </summary>
 public class KeyboardSwitcherWorker : BackgroundService
 {
@@ -44,6 +45,14 @@ public class KeyboardSwitcherWorker : BackgroundService
         // Check initial state
         CheckAndSwitchLayout();
 
+        // Set up power event monitoring (for resume from sleep)
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        _logger.LogInformation("Power mode monitoring started");
+
+        // Set up session switch monitoring (for lock/unlock)
+        SystemEvents.SessionSwitch += OnSessionSwitch;
+        _logger.LogInformation("Session monitoring started");
+
         // Set up USB event monitoring
         try
         {
@@ -54,6 +63,8 @@ public class KeyboardSwitcherWorker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to start USB event monitoring, falling back to polling");
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            SystemEvents.SessionSwitch -= OnSessionSwitch;
             await FallbackPollingMode(stoppingToken);
             return;
         }
@@ -69,9 +80,44 @@ public class KeyboardSwitcherWorker : BackgroundService
         }
         finally
         {
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            SystemEvents.SessionSwitch -= OnSessionSwitch;
             _usbWatcher?.Stop();
             _usbWatcher?.Dispose();
             _logger.LogInformation("Keyboard Auto Switcher worker stopping");
+        }
+    }
+
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Resume)
+        {
+            _logger.LogInformation("System resumed from sleep/hibernation");
+            // Small delay to let USB devices re-enumerate
+            Task.Delay(2000).ContinueWith(_ => CheckAndSwitchLayout());
+        }
+    }
+
+    private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
+    {
+        switch (e.Reason)
+        {
+            case SessionSwitchReason.SessionUnlock:
+                _logger.LogInformation("Session unlocked");
+                // Small delay to ensure session is fully restored
+                Task.Delay(500).ContinueWith(_ => CheckAndSwitchLayout());
+                break;
+            case SessionSwitchReason.SessionLock:
+                _logger.LogDebug("Session locked");
+                break;
+            case SessionSwitchReason.RemoteConnect:
+                _logger.LogInformation("Remote session connected");
+                Task.Delay(500).ContinueWith(_ => CheckAndSwitchLayout());
+                break;
+            case SessionSwitchReason.ConsoleConnect:
+                _logger.LogInformation("Console session connected");
+                Task.Delay(500).ContinueWith(_ => CheckAndSwitchLayout());
+                break;
         }
     }
 
