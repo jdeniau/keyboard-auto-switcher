@@ -1,3 +1,4 @@
+using System.Management;
 using System.Runtime.InteropServices;
 using KeyboardAutoSwitcher;
 using Microsoft.Extensions.Hosting;
@@ -7,6 +8,7 @@ namespace KeyboardAutoSwitcher.Services;
 
 /// <summary>
 /// Background worker that monitors keyboard connection and switches layouts automatically
+/// Uses event-based USB monitoring instead of polling for better performance
 /// </summary>
 public class KeyboardSwitcherWorker : BackgroundService
 {
@@ -22,9 +24,10 @@ public class KeyboardSwitcherWorker : BackgroundService
     private const uint KLF_ACTIVATE = 0x00000001;
     private const uint WM_INPUTLANGCHANGEREQUEST = 0x0050;
     private const int HWND_BROADCAST = 0xFFFF;
-    private const int POLLING_INTERVAL_MS = 5000;
 
     private readonly ILogger<KeyboardSwitcherWorker> _logger;
+    private ManagementEventWatcher? _usbWatcher;
+    private IntPtr[]? _cachedLayoutHandles; // Cache to avoid repeated allocations
 
     public KeyboardSwitcherWorker(ILogger<KeyboardSwitcherWorker> logger)
     {
@@ -33,37 +36,104 @@ public class KeyboardSwitcherWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Keyboard Auto Switcher worker starting");
+        _logger.LogInformation("Keyboard Auto Switcher worker starting (event-based monitoring)");
+
+        // Initialize layout cache
+        RefreshLayoutCache();
+
+        // Check initial state
+        CheckAndSwitchLayout();
+
+        // Set up USB event monitoring
+        try
+        {
+            _usbWatcher = USBDeviceInfo.CreateUSBWatcher(OnUSBDeviceEvent);
+            _usbWatcher.Start();
+            _logger.LogInformation("USB event monitoring started");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to start USB event monitoring, falling back to polling");
+            await FallbackPollingMode(stoppingToken);
+            return;
+        }
+
+        // Wait for cancellation
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (TaskCanceledException)
+        {
+            // graceful shutdown
+        }
+        finally
+        {
+            _usbWatcher?.Stop();
+            _usbWatcher?.Dispose();
+            _logger.LogInformation("Keyboard Auto Switcher worker stopping");
+        }
+    }
+
+    private void OnUSBDeviceEvent(object sender, EventArrivedEventArgs e)
+    {
+        try
+        {
+            _logger.LogDebug("USB device event detected");
+            CheckAndSwitchLayout();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling USB event");
+        }
+        finally
+        {
+            e.NewEvent?.Dispose(); // Prevent memory leak
+        }
+    }
+
+    private void CheckAndSwitchLayout()
+    {
+        try
+        {
+            KeyboardLayoutConfig? currentLayout = GetCurrentKeyboardLayout();
+            bool isExternalKeyboardConnected = USBDeviceInfo.IsTargetKeyboardConnected();
+
+            KeyboardLayoutConfig targetLayout = isExternalKeyboardConnected
+                ? KeyboardLayouts.UsDvorak
+                : KeyboardLayouts.FrenchStandard;
+
+            _logger.LogInformation(isExternalKeyboardConnected
+                ? "External keyboard detected"
+                : "No external keyboard");
+
+            if (currentLayout == null || currentLayout.LayoutId != targetLayout.LayoutId)
+            {
+                _logger.LogInformation("Switching to {Layout}...", targetLayout.DisplayName);
+                SetKeyboardLayout(targetLayout);
+            }
+            else
+            {
+                _logger.LogDebug("Already using {Layout}", currentLayout.DisplayName);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while checking/switching keyboard layout");
+        }
+    }
+
+    /// <summary>
+    /// Fallback to polling mode if event monitoring fails
+    /// </summary>
+    private async Task FallbackPollingMode(CancellationToken stoppingToken)
+    {
+        _logger.LogWarning("Running in polling mode (less efficient)");
+        const int POLLING_INTERVAL_MS = 10000; // 10 seconds for fallback mode
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
-            {
-                KeyboardLayoutConfig? currentLayout = GetCurrentKeyboardLayout();
-                bool isExternalKeyboardConnected = IsKeyboardConnected();
-
-                KeyboardLayoutConfig targetLayout = isExternalKeyboardConnected
-                    ? KeyboardLayouts.UsDvorak
-                    : KeyboardLayouts.FrenchStandard;
-
-                _logger.LogInformation(isExternalKeyboardConnected
-                    ? "External keyboard detected"
-                    : "No external keyboard");
-
-                if (currentLayout == null || currentLayout.LayoutId != targetLayout.LayoutId)
-                {
-                    _logger.LogInformation("Switching to {Layout}...", targetLayout.DisplayName);
-                    SetKeyboardLayout(targetLayout);
-                }
-                else
-                {
-                    _logger.LogInformation("Already using {Layout}", currentLayout.DisplayName);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error while monitoring/switching keyboard layout");
-            }
+            CheckAndSwitchLayout();
 
             try
             {
@@ -71,11 +141,17 @@ public class KeyboardSwitcherWorker : BackgroundService
             }
             catch (TaskCanceledException)
             {
-                // graceful shutdown
+                break;
             }
         }
+    }
 
-        _logger.LogInformation("Keyboard Auto Switcher worker stopping");
+    private void RefreshLayoutCache()
+    {
+        int layoutCount = GetKeyboardLayoutList(0, Array.Empty<IntPtr>());
+        _cachedLayoutHandles = new IntPtr[layoutCount];
+        GetKeyboardLayoutList(layoutCount, _cachedLayoutHandles);
+        _logger.LogDebug("Layout cache refreshed: {Count} layouts available", layoutCount);
     }
 
     private KeyboardLayoutConfig? GetCurrentKeyboardLayout()
@@ -96,19 +172,25 @@ public class KeyboardSwitcherWorker : BackgroundService
 
     private void SetKeyboardLayout(KeyboardLayoutConfig targetLayoutConfig)
     {
-        int layoutCount = GetKeyboardLayoutList(0, Array.Empty<IntPtr>());
-        IntPtr[] layoutHandles = new IntPtr[layoutCount];
-        GetKeyboardLayoutList(layoutCount, layoutHandles);
-
-        _logger.LogInformation("Looking for layout: {Layout} (0x{LayoutId:X8})", targetLayoutConfig.DisplayName, targetLayoutConfig.LayoutId);
-        foreach (IntPtr hkl in layoutHandles)
+        // Refresh cache if needed (e.g., if user installs new keyboard layouts)
+        if (_cachedLayoutHandles == null || _cachedLayoutHandles.Length == 0)
         {
-            KeyboardLayoutConfig? knownLayout = KeyboardLayouts.GetByLayoutId((int)hkl);
-            string layoutName = knownLayout != null ? knownLayout.DisplayName : "Unknown";
-            _logger.LogInformation("  0x{HKL:X8} - {LayoutName}", (int)hkl, layoutName);
+            RefreshLayoutCache();
         }
 
-        IntPtr targetLayout = FindLayoutHandle(layoutHandles, targetLayoutConfig);
+        _logger.LogDebug("Looking for layout: {Layout} (0x{LayoutId:X8})", targetLayoutConfig.DisplayName, targetLayoutConfig.LayoutId);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            foreach (IntPtr hkl in _cachedLayoutHandles!)
+            {
+                KeyboardLayoutConfig? knownLayout = KeyboardLayouts.GetByLayoutId((int)hkl);
+                string layoutName = knownLayout != null ? knownLayout.DisplayName : "Unknown";
+                _logger.LogDebug("  0x{HKL:X8} - {LayoutName}", (int)hkl, layoutName);
+            }
+        }
+
+        IntPtr targetLayout = FindLayoutHandle(_cachedLayoutHandles!, targetLayoutConfig);
         if (targetLayout == IntPtr.Zero)
         {
             _logger.LogWarning("Layout not installed: {Layout}", targetLayoutConfig.DisplayName);
@@ -154,22 +236,4 @@ public class KeyboardSwitcherWorker : BackgroundService
         return IntPtr.Zero;
     }
 
-    private bool IsKeyboardConnected()
-    {
-        var usbDevices = USBDeviceInfo.GetUSBDevices();
-        _logger.LogInformation("Found {Count} USB devices", usbDevices.Count);
-
-        foreach (var device in usbDevices)
-        {
-            _logger.LogDebug("USB Device: {PnpDeviceID} - {Description}", device.PnpDeviceID, device.Description);
-            if (device.PnpDeviceID.StartsWith(USBDeviceInfo.KeyboardInstanceName))
-            {
-                _logger.LogInformation("Target keyboard detected: {PnpDeviceID}", device.PnpDeviceID);
-                return true;
-            }
-        }
-
-        _logger.LogInformation("Target keyboard not found (looking for: {KeyboardId})", USBDeviceInfo.KeyboardInstanceName);
-        return false;
-    }
 }

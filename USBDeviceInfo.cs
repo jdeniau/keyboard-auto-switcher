@@ -24,14 +24,60 @@ class USBDeviceInfo
             @"Select * From Win32_USBHub");
         using ManagementObjectCollection collection = searcher.Get();
 
-        foreach (var device in collection)
+        foreach (ManagementObject device in collection)
         {
-            devices.Add(new USBDeviceInfo(
-                (string)device.GetPropertyValue("DeviceID"),
-                (string)device.GetPropertyValue("PNPDeviceID"),
-                (string)device.GetPropertyValue("Description")
-                ));
+            try
+            {
+                devices.Add(new USBDeviceInfo(
+                    (string)device.GetPropertyValue("DeviceID"),
+                    (string)device.GetPropertyValue("PNPDeviceID"),
+                    (string)device.GetPropertyValue("Description")
+                    ));
+            }
+            finally
+            {
+                device?.Dispose(); // Fix memory leak: dispose ManagementObject
+            }
         }
         return devices;
+    }
+
+    /// <summary>
+    /// Check if the target keyboard is currently connected
+    /// </summary>
+    public static bool IsTargetKeyboardConnected()
+    {
+        using var searcher = new ManagementObjectSearcher(
+            @"Select PNPDeviceID From Win32_USBHub");
+        using ManagementObjectCollection collection = searcher.Get();
+
+        foreach (ManagementObject device in collection)
+        {
+            try
+            {
+                string pnpDeviceID = (string)device.GetPropertyValue("PNPDeviceID");
+                if (pnpDeviceID?.StartsWith(KeyboardInstanceName) == true)
+                {
+                    return true;
+                }
+            }
+            finally
+            {
+                device?.Dispose();
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Create a watcher for USB device connection/disconnection events
+    /// </summary>
+    public static ManagementEventWatcher CreateUSBWatcher(EventArrivedEventHandler handler)
+    {
+        var watcher = new ManagementEventWatcher();
+        var query = new WqlEventQuery("SELECT * FROM __InstanceOperationEvent WITHIN 2 WHERE TargetInstance ISA 'Win32_USBHub'");
+        watcher.EventArrived += handler;
+        watcher.Query = query;
+        return watcher;
     }
 }
