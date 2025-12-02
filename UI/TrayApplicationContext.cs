@@ -16,6 +16,7 @@ public class TrayApplicationContext : ApplicationContext
     private readonly CancellationTokenSource _cts;
     private readonly ToolStripMenuItem _statusMenuItem;
     private readonly ToolStripMenuItem _keyboardMenuItem;
+    private readonly ToolStripMenuItem _startupMenuItem;
     private Icon _dvorakIcon;
     private Icon _azertyIcon;
     private Icon _defaultIcon;
@@ -42,9 +43,18 @@ public class TrayApplicationContext : ApplicationContext
             Enabled = false
         };
 
+        _startupMenuItem = new ToolStripMenuItem("Lancer au démarrage de Windows")
+        {
+            Checked = StartupManager.IsStartupEnabled,
+            CheckOnClick = true
+        };
+        _startupMenuItem.Click += OnStartupToggle;
+
         var contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add(_statusMenuItem);
         contextMenu.Items.Add(_keyboardMenuItem);
+        contextMenu.Items.Add(new ToolStripSeparator());
+        contextMenu.Items.Add(_startupMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add("📋 Afficher les logs", null, OnShowLogViewer);
         contextMenu.Items.Add("📁 Ouvrir le dossier de logs", null, OnOpenLogsFolder);
@@ -146,6 +156,38 @@ public class TrayApplicationContext : ApplicationContext
     private void OnNotifyIconDoubleClick(object? sender, EventArgs e)
     {
         OnShowLogViewer(sender, e);
+    }
+
+    private void OnStartupToggle(object? sender, EventArgs e)
+    {
+        try
+        {
+            bool success;
+            if (_startupMenuItem.Checked)
+            {
+                success = StartupManager.EnableStartup();
+            }
+            else
+            {
+                success = StartupManager.DisableStartup();
+            }
+
+            if (!success)
+            {
+                // Revert the checkbox state if operation failed
+                _startupMenuItem.Checked = !_startupMenuItem.Checked;
+                MessageBox.Show(
+                    "Impossible de modifier le paramètre de démarrage automatique.",
+                    "Keyboard Auto Switcher",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to toggle startup setting");
+            _startupMenuItem.Checked = !_startupMenuItem.Checked;
+        }
     }
 
     private void OnShowLogViewer(object? sender, EventArgs e)

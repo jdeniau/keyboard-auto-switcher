@@ -19,7 +19,7 @@ public static class ThemeHelper
             {
                 using var key = Registry.CurrentUser.OpenSubKey(
                     @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-                
+
                 if (key != null)
                 {
                     var value = key.GetValue("AppsUseLightTheme");
@@ -33,7 +33,7 @@ public static class ThemeHelper
             {
                 // Default to dark mode on error
             }
-            
+
             return true; // Default to dark mode
         }
     }
@@ -51,7 +51,7 @@ public static class ThemeHelper
     public static void StartMonitoring()
     {
         if (_isMonitoring) return;
-        
+
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         _isMonitoring = true;
     }
@@ -62,7 +62,7 @@ public static class ThemeHelper
     public static void StopMonitoring()
     {
         if (!_isMonitoring) return;
-        
+
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _isMonitoring = false;
     }
@@ -93,11 +93,11 @@ public class ThemeColors
     public Color Background { get; init; }
     public Color BackgroundSecondary { get; init; }
     public Color BackgroundToolbar { get; init; }
-    
+
     // Text colors
     public Color TextPrimary { get; init; }
     public Color TextSecondary { get; init; }
-    
+
     // Log level colors
     public Color LogDebug { get; init; }
     public Color LogInfo { get; init; }
@@ -105,14 +105,14 @@ public class ThemeColors
     public Color LogError { get; init; }
     public Color LogFatal { get; init; }
     public Color LogTimestamp { get; init; }
-    
+
     // Highlight colors
     public Color HighlightKeyboard { get; init; }
     public Color HighlightHex { get; init; }
     public Color HighlightConnected { get; init; }
     public Color HighlightDisconnected { get; init; }
     public Color HighlightAction { get; init; }
-    
+
     // UI colors
     public Color Border { get; init; }
     public Color ButtonHover { get; init; }
@@ -128,11 +128,11 @@ public class ThemeColors
         Background = Color.FromArgb(30, 30, 30),
         BackgroundSecondary = Color.FromArgb(37, 37, 38),
         BackgroundToolbar = Color.FromArgb(45, 45, 45),
-        
+
         // Text
         TextPrimary = Color.FromArgb(220, 220, 220),
         TextSecondary = Color.FromArgb(150, 150, 150),
-        
+
         // Log levels
         LogDebug = Color.FromArgb(128, 128, 128),
         LogInfo = Color.FromArgb(86, 156, 214),
@@ -140,14 +140,14 @@ public class ThemeColors
         LogError = Color.FromArgb(244, 71, 71),
         LogFatal = Color.FromArgb(200, 40, 40),
         LogTimestamp = Color.FromArgb(140, 140, 140),   // Light gray for timestamp
-        
+
         // Highlights
         HighlightKeyboard = Color.FromArgb(156, 220, 120),
         HighlightHex = Color.FromArgb(206, 147, 216),
         HighlightConnected = Color.FromArgb(129, 199, 132),
         HighlightDisconnected = Color.FromArgb(239, 154, 154),
         HighlightAction = Color.FromArgb(255, 213, 79),
-        
+
         // UI
         Border = Color.FromArgb(60, 60, 60),
         ButtonHover = Color.FromArgb(60, 60, 60),
@@ -164,11 +164,11 @@ public class ThemeColors
         Background = Color.FromArgb(255, 255, 255),
         BackgroundSecondary = Color.FromArgb(248, 248, 248),
         BackgroundToolbar = Color.FromArgb(240, 240, 240),
-        
+
         // Text - minimum 4.5:1 contrast on white
         TextPrimary = Color.FromArgb(23, 23, 23),       // ~18:1 contrast
         TextSecondary = Color.FromArgb(90, 90, 90),     // ~5.3:1 contrast
-        
+
         // Log levels - all AA compliant on white background
         LogDebug = Color.FromArgb(96, 96, 96),          // ~5.9:1 contrast (gray)
         LogInfo = Color.FromArgb(0, 90, 180),           // ~5.1:1 contrast (vivid blue)
@@ -176,14 +176,14 @@ public class ThemeColors
         LogError = Color.FromArgb(179, 38, 38),         // ~5.6:1 contrast (dark red)
         LogFatal = Color.FromArgb(130, 0, 0),           // ~8.1:1 contrast (very dark red)
         LogTimestamp = Color.FromArgb(96, 96, 96),      // ~5.9:1 contrast (gray like debug)
-        
+
         // Highlights - AA compliant on white background
         HighlightKeyboard = Color.FromArgb(0, 120, 60),     // ~4.6:1 contrast (vivid green)
         HighlightHex = Color.FromArgb(130, 0, 180),         // ~6.2:1 contrast (vivid purple)
         HighlightConnected = Color.FromArgb(0, 120, 60),    // ~4.6:1 contrast (vivid green)
         HighlightDisconnected = Color.FromArgb(165, 29, 29),// ~6.3:1 contrast (dark red)
         HighlightAction = Color.FromArgb(200, 100, 0),      // ~4.5:1 contrast (vivid orange)
-        
+
         // UI
         Border = Color.FromArgb(200, 200, 200),
         ButtonHover = Color.FromArgb(225, 225, 225),

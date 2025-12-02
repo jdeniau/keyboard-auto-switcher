@@ -35,7 +35,7 @@ public partial class LogViewerForm : Form
             ReadOnly = true,
             BackColor = _theme.Background,
             ForeColor = _theme.TextPrimary,
-            Font = new Font("Cascadia Code", 10F, FontStyle.Regular, GraphicsUnit.Point) 
+            Font = new Font("Cascadia Code", 10F, FontStyle.Regular, GraphicsUnit.Point)
                    ?? new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point),
             BorderStyle = BorderStyle.None,
             WordWrap = false,
@@ -97,13 +97,13 @@ public partial class LogViewerForm : Form
         {
             _toolStrip.BackColor = _theme.BackgroundToolbar;
             _toolStrip.Renderer = new ThemedToolStripRenderer(_theme);
-            
+
             foreach (ToolStripItem item in _toolStrip.Items)
             {
                 if (item is ToolStripLabel label)
                 {
-                    label.ForeColor = item.Tag?.ToString() == "filelabel" 
-                        ? _theme.TextSecondary 
+                    label.ForeColor = item.Tag?.ToString() == "filelabel"
+                        ? _theme.TextSecondary
                         : _theme.TextPrimary;
                 }
                 else if (item is ToolStripButton button)
@@ -134,7 +134,7 @@ public partial class LogViewerForm : Form
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = _theme.Background;
-        
+
         // Set icon
         try
         {
@@ -188,8 +188,8 @@ public partial class LogViewerForm : Form
         };
         autoScrollCheckbox.Click += (s, e) =>
         {
-            autoScrollCheckbox.ForeColor = autoScrollCheckbox.Checked 
-                ? _theme.HighlightConnected 
+            autoScrollCheckbox.ForeColor = autoScrollCheckbox.Checked
+                ? _theme.HighlightConnected
                 : _theme.TextSecondary;
             autoScrollCheckbox.Text = autoScrollCheckbox.Checked ? "✓" : "✗";
         };
@@ -212,7 +212,8 @@ public partial class LogViewerForm : Form
         toolStrip.Items.Add(fileLabel);
 
         return toolStrip;
-    }    private void SetupFileWatcher()
+    }
+    private void SetupFileWatcher()
     {
         if (!Directory.Exists(_logDirectory))
         {
@@ -433,7 +434,7 @@ public partial class LogViewerForm : Form
     private bool IsAutoScrollEnabled()
     {
         if (_toolStrip == null) return true;
-        
+
         foreach (ToolStripItem item in _toolStrip.Items)
         {
             if (item.Tag?.ToString() == "autoscroll" && item is ToolStripButton btn)
@@ -447,7 +448,7 @@ public partial class LogViewerForm : Form
     private void UpdateFileLabel(string fileName)
     {
         if (_toolStrip == null) return;
-        
+
         foreach (ToolStripItem item in _toolStrip.Items)
         {
             if (item.Tag?.ToString() == "filelabel" && item is ToolStripLabel label)
