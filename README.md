@@ -1,5 +1,7 @@
 # keyboard-auto-switcher
 
+[![Tests](https://github.com/jdeniau/keyboard-auto-switcher/actions/workflows/tests.yml/badge.svg)](https://github.com/jdeniau/keyboard-auto-switcher/actions/workflows/tests.yml)
+
 Switch automatically between azerty and dvorak if a typematrix keyboard is connected
 
 ## Usage
@@ -66,4 +68,37 @@ Start/Stop the task:
 Start-ScheduledTask -TaskName KeyboardAutoSwitcher
 Stop-ScheduledTask -TaskName KeyboardAutoSwitcher
 Unregister-ScheduledTask -TaskName KeyboardAutoSwitcher -Confirm:$false
+```
+
+## Tests
+
+### Run tests
+
+```pwsh
+dotnet test tests
+```
+
+### Run tests with coverage (HTML report)
+
+```pwsh
+# 1. Run tests with coverage collection
+dotnet test tests --collect:"XPlat Code Coverage" --results-directory:"tests/TestResults"
+
+# 2. Generate the HTML report (requires reportgenerator)
+reportgenerator -reports:"tests/TestResults/*/coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:Html
+
+# 3. Open the report
+start coverage-report/index.html
+```
+
+**Installation of ReportGenerator** (one-time):
+
+```pwsh
+dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.2.0
+```
+
+Open the coverage report:
+
+```pwsh
+start coverage-report/index.html
 ```

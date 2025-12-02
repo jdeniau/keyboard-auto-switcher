@@ -1,4 +1,5 @@
-﻿using KeyboardAutoSwitcher.Services;
+﻿using KeyboardAutoSwitcher;
+using KeyboardAutoSwitcher.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -40,6 +41,9 @@ internal class Program
                 options.ServiceName = "Keyboard Auto Switcher";
             });
 
+            // Register USB device detector
+            builder.Services.AddSingleton<IUSBDeviceDetector, USBDeviceDetector>();
+
             // Add our background worker
             builder.Services.AddHostedService<KeyboardSwitcherWorker>();
 
@@ -56,4 +60,3 @@ internal class Program
         }
     }
 }
-
