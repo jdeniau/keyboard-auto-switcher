@@ -1,4 +1,3 @@
-using System.Management;
 using KeyboardAutoSwitcher;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,11 +12,12 @@ namespace KeyboardAutoSwitcher.Services;
 public class KeyboardSwitcherWorker : BackgroundService
 {
     private readonly ILogger<KeyboardSwitcherWorker> _logger;
-    private ManagementEventWatcher? _usbWatcher;
+    private readonly IUSBDeviceDetector _usbDetector;
 
-    public KeyboardSwitcherWorker(ILogger<KeyboardSwitcherWorker> logger)
+    public KeyboardSwitcherWorker(ILogger<KeyboardSwitcherWorker> logger, IUSBDeviceDetector usbDetector)
     {
         _logger = logger;
+        _usbDetector = usbDetector;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,8 +41,8 @@ public class KeyboardSwitcherWorker : BackgroundService
         // Set up USB event monitoring
         try
         {
-            _usbWatcher = USBDeviceInfo.CreateUSBWatcher(OnUSBDeviceEvent);
-            _usbWatcher.Start();
+            _usbDetector.DeviceChanged += OnUSBDeviceChanged;
+            _usbDetector.StartMonitoring();
             _logger.LogInformation("USB event monitoring started");
         }
         catch (Exception ex)
@@ -67,8 +67,8 @@ public class KeyboardSwitcherWorker : BackgroundService
         {
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             SystemEvents.SessionSwitch -= OnSessionSwitch;
-            _usbWatcher?.Stop();
-            _usbWatcher?.Dispose();
+            _usbDetector.DeviceChanged -= OnUSBDeviceChanged;
+            _usbDetector.StopMonitoring();
             _logger.LogInformation("Keyboard Auto Switcher worker stopping");
         }
     }
@@ -106,20 +106,16 @@ public class KeyboardSwitcherWorker : BackgroundService
         }
     }
 
-    private void OnUSBDeviceEvent(object sender, EventArrivedEventArgs e)
+    private void OnUSBDeviceChanged(object? sender, USBDeviceEventArgs e)
     {
         try
         {
-            _logger.LogDebug("USB device event detected");
+            _logger.LogDebug("USB device event detected (keyboard connected: {IsConnected})", e.IsTargetKeyboardConnected);
             CheckAndSwitchLayout();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error handling USB event");
-        }
-        finally
-        {
-            e.NewEvent?.Dispose(); // Prevent memory leak
         }
     }
 
@@ -129,7 +125,7 @@ public class KeyboardSwitcherWorker : BackgroundService
         {
             KeyboardLayoutConfig? currentLayout = KeyboardLayout.GetCurrentLayout();
             int currentLayoutId = KeyboardLayout.GetCurrentLayoutId();
-            bool isExternalKeyboardConnected = USBDeviceInfo.IsTargetKeyboardConnected();
+            bool isExternalKeyboardConnected = _usbDetector.IsTargetKeyboardConnected();
 
             KeyboardLayoutConfig targetLayout = isExternalKeyboardConnected
                 ? KeyboardLayouts.UsDvorak

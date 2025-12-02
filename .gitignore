@@ -119,6 +119,9 @@ _TeamCity*
 *.coverage
 *.coveragexml
 
+# ReportGenerator HTML coverage reports
+coverage-report/
+
 # NCrunch
 _NCrunch_*
 .*crunch*.local.xml
