@@ -56,6 +56,16 @@ dotnet tool install -g vpk
 
 ### Build and package
 
+To release a new version :
+
+- Update the version number in `keyboard-auto-switcher.csproj`
+- push a new git tag `vX.Y.Z` (e.g. `v1.0.1`)
+- create a release on GitHub
+
+<details>
+
+<summary>Detailled memo on how to release a new version manually (prefer the GitHub Actions workflow)</summary>
+
 1. Build the release:
 
 ```pwsh
@@ -73,6 +83,8 @@ The installer and update files will be created in the `Releases/` folder:
 - `KeyboardAutoSwitcher-win-x64-Setup.exe` - Installer
 - `KeyboardAutoSwitcher-1.0.0-win-x64-full.nupkg` - Full package for updates
 - `RELEASES` - Release manifest
+
+</details>
 
 ### Publishing updates
 
