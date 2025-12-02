@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Xunit;
 
 namespace KeyboardAutoSwitcher.Tests;
@@ -20,9 +20,9 @@ public class KeyboardLayoutConfigTests
         var config = new KeyboardLayoutConfig(cultureName, layoutId, displayName);
 
         // Assert
-        config.CultureName.Should().Be(cultureName);
-        config.LayoutId.Should().Be(layoutId);
-        config.DisplayName.Should().Be(displayName);
+        config.CultureName.ShouldBe(cultureName);
+        config.LayoutId.ShouldBe(layoutId);
+        config.DisplayName.ShouldBe(displayName);
     }
 
     [Theory]
@@ -38,8 +38,8 @@ public class KeyboardLayoutConfigTests
         var cultureInfo = config.GetCultureInfo();
 
         // Assert
-        cultureInfo.Should().NotBeNull();
-        cultureInfo.Name.Should().Be(cultureName);
+        cultureInfo.ShouldNotBeNull();
+        cultureInfo.Name.ShouldBe(cultureName);
     }
 
     [Theory]
@@ -54,7 +54,7 @@ public class KeyboardLayoutConfigTests
         var languageId = config.GetLanguageId();
 
         // Assert
-        languageId.Should().Be(expectedLanguageId);
+        languageId.ShouldBe(expectedLanguageId);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class KeyboardLayoutConfigTests
         var languageId = config.GetLanguageId();
 
         // Assert - Should only return 0x0409, not the full value
-        languageId.Should().Be(0x0409);
-        languageId.Should().BeLessThan(0x10000);  // Should be 16-bit value
+        languageId.ShouldBe(0x0409);
+        languageId.ShouldBeLessThan(0x10000);  // Should be 16-bit value
     }
 }

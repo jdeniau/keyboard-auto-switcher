@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -64,7 +64,7 @@ public class USBDeviceDetectorMockTests
         bool result = detector.IsTargetKeyboardConnected();
 
         // Assert
-        result.Should().BeFalse();
+        result.ShouldBeFalse();
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class USBDeviceDetectorMockTests
         bool result = detector.IsTargetKeyboardConnected();
 
         // Assert
-        result.Should().BeTrue();
+        result.ShouldBeTrue();
     }
 
     [Fact]
@@ -99,9 +99,9 @@ public class USBDeviceDetectorMockTests
         detector.SimulateConnect();
 
         // Assert
-        eventRaised.Should().BeTrue();
-        receivedConnectionState.Should().BeTrue();
-        detector.IsTargetKeyboardConnected().Should().BeTrue();
+        eventRaised.ShouldBeTrue();
+        receivedConnectionState.ShouldBe(true);
+        detector.IsTargetKeyboardConnected().ShouldBeTrue();
     }
 
     [Fact]
@@ -123,9 +123,9 @@ public class USBDeviceDetectorMockTests
         detector.SimulateDisconnect();
 
         // Assert
-        eventRaised.Should().BeTrue();
-        receivedConnectionState.Should().BeFalse();
-        detector.IsTargetKeyboardConnected().Should().BeFalse();
+        eventRaised.ShouldBeTrue();
+        receivedConnectionState.ShouldBe(false);
+        detector.IsTargetKeyboardConnected().ShouldBeFalse();
     }
 
     [Fact]
@@ -144,8 +144,8 @@ public class USBDeviceDetectorMockTests
         detector.SimulateDisconnect();
 
         // Assert
-        subscriber1Count.Should().Be(2);
-        subscriber2Count.Should().Be(2);
+        subscriber1Count.ShouldBe(2);
+        subscriber2Count.ShouldBe(2);
     }
 
     [Fact]
@@ -163,8 +163,8 @@ public class USBDeviceDetectorMockTests
         detector.SimulateConnect();
 
         // Assert
-        states.Should().HaveCount(3);
-        states.Should().Equal(true, false, true);
+        states.Count.ShouldBe(3);
+        states.ShouldBe(new[] { true, false, true });
     }
 
     [Fact]
@@ -175,8 +175,8 @@ public class USBDeviceDetectorMockTests
         var disconnectedArgs = new USBDeviceEventArgs(false);
 
         // Assert
-        connectedArgs.IsTargetKeyboardConnected.Should().BeTrue();
-        disconnectedArgs.IsTargetKeyboardConnected.Should().BeFalse();
+        connectedArgs.IsTargetKeyboardConnected.ShouldBeTrue();
+        disconnectedArgs.IsTargetKeyboardConnected.ShouldBeFalse();
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class USBDeviceDetectorMockTests
         bool result = mockDetector.Object.IsTargetKeyboardConnected();
 
         // Assert
-        result.Should().BeTrue();
+        result.ShouldBeTrue();
         mockDetector.Verify(d => d.IsTargetKeyboardConnected(), Times.Once);
     }
 
@@ -206,9 +206,9 @@ public class USBDeviceDetectorMockTests
             .Returns(false); // Fourth call - disconnected
 
         // Act & Assert
-        mockDetector.Object.IsTargetKeyboardConnected().Should().BeFalse();
-        mockDetector.Object.IsTargetKeyboardConnected().Should().BeTrue();
-        mockDetector.Object.IsTargetKeyboardConnected().Should().BeTrue();
-        mockDetector.Object.IsTargetKeyboardConnected().Should().BeFalse();
+        mockDetector.Object.IsTargetKeyboardConnected().ShouldBeFalse();
+        mockDetector.Object.IsTargetKeyboardConnected().ShouldBeTrue();
+        mockDetector.Object.IsTargetKeyboardConnected().ShouldBeTrue();
+        mockDetector.Object.IsTargetKeyboardConnected().ShouldBeFalse();
     }
 }

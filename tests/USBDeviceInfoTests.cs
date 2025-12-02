@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Xunit;
 
 namespace KeyboardAutoSwitcher.Tests;
@@ -14,29 +14,29 @@ public class USBDeviceInfoTests
     public void KeyboardInstanceName_ShouldBeTypeMatrixVidPid()
     {
         // Assert - Verify the correct VID/PID for TypeMatrix keyboard
-        USBDeviceInfo.KeyboardInstanceName.Should().Be(@"USB\VID_1E54&PID_2030\");
+        USBDeviceInfo.KeyboardInstanceName.ShouldBe(@"USB\VID_1E54&PID_2030\");
     }
 
     [Fact]
     public void KeyboardInstanceName_ShouldStartWithUSB()
     {
         // Assert
-        USBDeviceInfo.KeyboardInstanceName.Should().StartWith("USB\\");
+        USBDeviceInfo.KeyboardInstanceName.ShouldStartWith("USB\\");
     }
 
     [Fact]
     public void KeyboardInstanceName_ShouldContainVidAndPid()
     {
         // Assert
-        USBDeviceInfo.KeyboardInstanceName.Should().Contain("VID_");
-        USBDeviceInfo.KeyboardInstanceName.Should().Contain("PID_");
+        USBDeviceInfo.KeyboardInstanceName.ShouldContain("VID_");
+        USBDeviceInfo.KeyboardInstanceName.ShouldContain("PID_");
     }
 
     [Fact]
     public void KeyboardInstanceName_ShouldEndWithBackslash()
     {
         // The instance name ends with backslash for prefix matching
-        USBDeviceInfo.KeyboardInstanceName.Should().EndWith("\\");
+        USBDeviceInfo.KeyboardInstanceName.ShouldEndWith("\\");
     }
 
     [Fact]
@@ -49,9 +49,9 @@ public class USBDeviceInfoTests
         using var watcher = USBDeviceInfo.CreateUSBWatcher(handler);
 
         // Assert
-        watcher.Query.Should().NotBeNull();
-        watcher.Query.QueryString.Should().Contain("__InstanceOperationEvent");
-        watcher.Query.QueryString.Should().Contain("Win32_USBHub");
+        watcher.Query.ShouldNotBeNull();
+        watcher.Query.QueryString.ShouldContain("__InstanceOperationEvent");
+        watcher.Query.QueryString.ShouldContain("Win32_USBHub");
     }
 
     /// <summary>
@@ -68,6 +68,6 @@ public class USBDeviceInfoTests
 
         // Assert - Should execute without throwing (result depends on hardware)
         // The method should always return a valid boolean
-        result.Should().Be(result); // Verifies no exception and valid return
+        result.ShouldBe(result); // Verifies no exception and valid return
     }
 }
