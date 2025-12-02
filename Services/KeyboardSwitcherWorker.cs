@@ -1,4 +1,5 @@
 using KeyboardAutoSwitcher;
+using KeyboardAutoSwitcher.UI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
@@ -13,6 +14,17 @@ public class KeyboardSwitcherWorker : BackgroundService
 {
     private readonly ILogger<KeyboardSwitcherWorker> _logger;
     private readonly IUSBDeviceDetector _usbDetector;
+    private bool _isFirstCheck = true;
+
+    /// <summary>
+    /// Event raised when the keyboard layout changes
+    /// </summary>
+    public static event EventHandler<LayoutChangedEventArgs>? LayoutChanged;
+
+    /// <summary>
+    /// Event raised when the external keyboard connection status changes
+    /// </summary>
+    public static event EventHandler<KeyboardStatusEventArgs>? KeyboardStatusChanged;
 
     public KeyboardSwitcherWorker(ILogger<KeyboardSwitcherWorker> logger, IUSBDeviceDetector usbDetector)
     {
@@ -127,6 +139,9 @@ public class KeyboardSwitcherWorker : BackgroundService
             int currentLayoutId = KeyboardLayout.GetCurrentLayoutId();
             bool isExternalKeyboardConnected = _usbDetector.IsTargetKeyboardConnected();
 
+            // Notify UI about keyboard status
+            KeyboardStatusChanged?.Invoke(this, new KeyboardStatusEventArgs(isExternalKeyboardConnected));
+
             KeyboardLayoutConfig targetLayout = isExternalKeyboardConnected
                 ? KeyboardLayouts.UsDvorak
                 : KeyboardLayouts.FrenchStandard;
@@ -142,11 +157,28 @@ public class KeyboardSwitcherWorker : BackgroundService
             {
                 _logger.LogInformation("Switching to {Layout}...", targetLayout.DisplayName);
                 SetKeyboardLayout(targetLayout);
+
+                // Notify UI about layout change
+                LayoutChanged?.Invoke(this, new LayoutChangedEventArgs(
+                    targetLayout.DisplayName,
+                    isExternalKeyboardConnected,
+                    _isFirstCheck));
             }
             else
             {
                 _logger.LogDebug("Already using {Layout}", currentLayout.DisplayName);
+
+                // Still notify UI on first check
+                if (_isFirstCheck)
+                {
+                    LayoutChanged?.Invoke(this, new LayoutChangedEventArgs(
+                        currentLayout.DisplayName,
+                        isExternalKeyboardConnected,
+                        true));
+                }
             }
+
+            _isFirstCheck = false;
         }
         catch (Exception ex)
         {
