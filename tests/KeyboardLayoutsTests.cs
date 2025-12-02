@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Xunit;
 
 namespace KeyboardAutoSwitcher.Tests;
@@ -14,20 +14,20 @@ public class KeyboardLayoutsTests
     public void UsDvorak_ShouldHaveCorrectConfiguration()
     {
         // Assert
-        KeyboardLayouts.UsDvorak.Should().NotBeNull();
-        KeyboardLayouts.UsDvorak.CultureName.Should().Be("en-US");
-        KeyboardLayouts.UsDvorak.DisplayName.Should().Contain("Dvorak");
-        KeyboardLayouts.UsDvorak.LayoutId.Should().Be(unchecked((int)0xF0020409));
+        KeyboardLayouts.UsDvorak.ShouldNotBeNull();
+        KeyboardLayouts.UsDvorak.CultureName.ShouldBe("en-US");
+        KeyboardLayouts.UsDvorak.DisplayName.ShouldContain("Dvorak");
+        KeyboardLayouts.UsDvorak.LayoutId.ShouldBe(unchecked((int)0xF0020409));
     }
 
     [Fact]
     public void FrenchStandard_ShouldHaveCorrectConfiguration()
     {
         // Assert
-        KeyboardLayouts.FrenchStandard.Should().NotBeNull();
-        KeyboardLayouts.FrenchStandard.CultureName.Should().Be("fr-FR");
-        KeyboardLayouts.FrenchStandard.DisplayName.Should().Contain("French");
-        KeyboardLayouts.FrenchStandard.LayoutId.Should().Be(0x040C040C);
+        KeyboardLayouts.FrenchStandard.ShouldNotBeNull();
+        KeyboardLayouts.FrenchStandard.CultureName.ShouldBe("fr-FR");
+        KeyboardLayouts.FrenchStandard.DisplayName.ShouldContain("French");
+        KeyboardLayouts.FrenchStandard.LayoutId.ShouldBe(0x040C040C);
     }
 
     #endregion
@@ -41,8 +41,8 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByCultureName("en-US");
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().Be(KeyboardLayouts.UsDvorak);
+        result.ShouldNotBeNull();
+        result.ShouldBe(KeyboardLayouts.UsDvorak);
     }
 
     [Fact]
@@ -52,8 +52,8 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByCultureName("fr-FR");
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().Be(KeyboardLayouts.FrenchStandard);
+        result.ShouldNotBeNull();
+        result.ShouldBe(KeyboardLayouts.FrenchStandard);
     }
 
     [Theory]
@@ -68,7 +68,7 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByCultureName(cultureName);
 
         // Assert
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     #endregion
@@ -85,8 +85,8 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByLayoutId(dvorakLayoutId);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().Be(KeyboardLayouts.UsDvorak);
+        result.ShouldNotBeNull();
+        result.ShouldBe(KeyboardLayouts.UsDvorak);
     }
 
     [Fact]
@@ -99,8 +99,8 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByLayoutId(frenchLayoutId);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().Be(KeyboardLayouts.FrenchStandard);
+        result.ShouldNotBeNull();
+        result.ShouldBe(KeyboardLayouts.FrenchStandard);
     }
 
     [Theory]
@@ -113,7 +113,7 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByLayoutId(layoutId);
 
         // Assert
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     #endregion
@@ -130,8 +130,8 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByLanguageId(englishUSLangId);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().Be(KeyboardLayouts.UsDvorak);
+        result.ShouldNotBeNull();
+        result.ShouldBe(KeyboardLayouts.UsDvorak);
     }
 
     [Fact]
@@ -144,8 +144,8 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByLanguageId(frenchLangId);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().Be(KeyboardLayouts.FrenchStandard);
+        result.ShouldNotBeNull();
+        result.ShouldBe(KeyboardLayouts.FrenchStandard);
     }
 
     [Theory]
@@ -158,7 +158,7 @@ public class KeyboardLayoutsTests
         var result = KeyboardLayouts.GetByLanguageId(langId);
 
         // Assert
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     #endregion
@@ -169,8 +169,8 @@ public class KeyboardLayoutsTests
     public void AllPredefinedLayouts_ShouldHaveValidLanguageId()
     {
         // Assert - Language ID should be lower 16 bits of layout ID
-        KeyboardLayouts.UsDvorak.GetLanguageId().Should().Be(0x0409);
-        KeyboardLayouts.FrenchStandard.GetLanguageId().Should().Be(0x040C);
+        KeyboardLayouts.UsDvorak.GetLanguageId().ShouldBe(0x0409);
+        KeyboardLayouts.FrenchStandard.GetLanguageId().ShouldBe(0x040C);
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class KeyboardLayoutsTests
         var byCulture = KeyboardLayouts.GetByCultureName("en-US");
         var byLayoutId = KeyboardLayouts.GetByLayoutId(byCulture!.LayoutId);
 
-        byCulture.Should().Be(byLayoutId);
+        byCulture.ShouldBe(byLayoutId);
     }
 
     #endregion
