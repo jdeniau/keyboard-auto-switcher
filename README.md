@@ -1,6 +1,7 @@
 # keyboard-auto-switcher
 
 [![Tests](https://github.com/jdeniau/keyboard-auto-switcher/actions/workflows/tests.yml/badge.svg)](https://github.com/jdeniau/keyboard-auto-switcher/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/jdeniau/keyboard-auto-switcher/graph/badge.svg)](https://codecov.io/gh/jdeniau/keyboard-auto-switcher)
 
 Switch automatically between azerty and dvorak if a typematrix keyboard is connected
 

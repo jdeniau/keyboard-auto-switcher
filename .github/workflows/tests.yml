@@ -1,62 +1,35 @@
 name: Tests
 
 on:
-    push:
-        branches: [main]
-    pull_request: ~
+  push:
+    branches: [main]
+  pull_request: ~
 
 jobs:
-    test:
-        runs-on: windows-latest
-        permissions:
-            contents: read
-            pull-requests: write
-            actions: read
+  test:
+    runs-on: windows-latest
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: "7.0.x"
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "7.0.x"
 
-            - name: Restore dependencies
-              run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-            - name: Build
-              run: dotnet build --no-restore --configuration Release
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
 
-            - name: Run tests with coverage
-              run: dotnet test tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+      - name: Run tests with coverage
+        run: dotnet test tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage-report
 
-            - name: Download main branch coverage
-              if: github.event_name == 'pull_request'
-              uses: dawidd6/action-download-artifact@v6
-              continue-on-error: true
-              with:
-                  name: coverage-report
-                  branch: main
-                  workflow: tests.yml
-                  path: coverage-main
-
-            - name: Generate coverage report
-              uses: danielpalme/ReportGenerator-GitHub-Action@5
-              with:
-                  reports: coverage/**/coverage.cobertura.xml
-                  targetdir: coverage-report
-                  reporttypes: HtmlInline;MarkdownSummaryGithub;Cobertura
-                  historydir: coverage-main
-
-            - name: Add coverage PR comment
-              uses: marocchino/sticky-pull-request-comment@v2
-              if: github.event_name == 'pull_request'
-              with:
-                  path: coverage-report/SummaryGithub.md
-
-            - name: Upload coverage report
-              uses: actions/upload-artifact@v4
-              with:
-                  name: coverage-report
-                  path: coverage-report
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./coverage-report
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
