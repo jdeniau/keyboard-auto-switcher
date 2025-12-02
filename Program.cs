@@ -4,12 +4,16 @@ using KeyboardAutoSwitcher.UI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Velopack;
 
 internal class Program
 {
     [STAThread]
     public static void Main(string[] args)
     {
+        // Velopack must be the first thing to run
+        VelopackApp.Build().Run();
+
         // Configure Serilog
         var logPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
