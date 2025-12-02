@@ -17,6 +17,7 @@ public class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem _statusMenuItem;
     private readonly ToolStripMenuItem _keyboardMenuItem;
     private readonly ToolStripMenuItem _startupMenuItem;
+    private readonly ToolStripMenuItem _updateMenuItem;
     private Icon _dvorakIcon;
     private Icon _azertyIcon;
     private Icon _defaultIcon;
@@ -50,11 +51,17 @@ public class TrayApplicationContext : ApplicationContext
         };
         _startupMenuItem.Click += OnStartupToggle;
 
+        _updateMenuItem = new ToolStripMenuItem($"Version {UpdateManager.CurrentVersion}")
+        {
+            Enabled = false
+        };
+
         var contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add(_statusMenuItem);
         contextMenu.Items.Add(_keyboardMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(_startupMenuItem);
+        contextMenu.Items.Add(_updateMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add("📋 Afficher les logs", null, OnShowLogViewer);
         contextMenu.Items.Add("📁 Ouvrir le dossier de logs", null, OnOpenLogsFolder);
@@ -78,6 +85,9 @@ public class TrayApplicationContext : ApplicationContext
 
         // Start the host
         StartHostAsync();
+
+        // Check for updates in background
+        CheckForUpdatesAsync();
     }
 
     private async void StartHostAsync()
@@ -95,6 +105,80 @@ public class TrayApplicationContext : ApplicationContext
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             Application.Exit();
+        }
+    }
+
+    private async void CheckForUpdatesAsync()
+    {
+        try
+        {
+            var (available, newVersion) = await UpdateManager.CheckForUpdatesSilentAsync();
+
+            if (available && newVersion != null)
+            {
+                if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
+                {
+                    _notifyIcon.ContextMenuStrip.Invoke(() => UpdateMenuForNewVersion(newVersion));
+                }
+                else
+                {
+                    UpdateMenuForNewVersion(newVersion);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to check for updates");
+        }
+    }
+
+    private void UpdateMenuForNewVersion(string newVersion)
+    {
+        _updateMenuItem.Text = $"🔄 Mise à jour disponible: v{newVersion}";
+        _updateMenuItem.Enabled = true;
+        _updateMenuItem.Click += OnUpdateClick;
+
+        _notifyIcon.ShowBalloonTip(
+            3000,
+            "Mise à jour disponible",
+            $"Une nouvelle version ({newVersion}) est disponible. Cliquez pour mettre à jour.",
+            ToolTipIcon.Info);
+    }
+
+    private async void OnUpdateClick(object? sender, EventArgs e)
+    {
+        _updateMenuItem.Text = "⏳ Téléchargement en cours...";
+        _updateMenuItem.Enabled = false;
+
+        try
+        {
+            var updateInfo = await UpdateManager.CheckForUpdatesAsync();
+
+            if (updateInfo != null)
+            {
+                await UpdateManager.DownloadAndApplyUpdateAsync(updateInfo, progress =>
+                {
+                    if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
+                    {
+                        _notifyIcon.ContextMenuStrip.Invoke(() =>
+                            _updateMenuItem.Text = $"⏳ Téléchargement: {progress}%");
+                    }
+                    else
+                    {
+                        _updateMenuItem.Text = $"⏳ Téléchargement: {progress}%";
+                    }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to apply update");
+            _updateMenuItem.Text = "❌ Échec de la mise à jour";
+            MessageBox.Show(
+                $"Échec de la mise à jour: {ex.Message}",
+                "Keyboard Auto Switcher",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
         }
     }
 

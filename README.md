@@ -3,21 +3,34 @@
 [![Tests](https://github.com/jdeniau/keyboard-auto-switcher/actions/workflows/tests.yml/badge.svg)](https://github.com/jdeniau/keyboard-auto-switcher/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/jdeniau/keyboard-auto-switcher/graph/badge.svg)](https://codecov.io/gh/jdeniau/keyboard-auto-switcher)
 
-Switch automatically between azerty and dvorak if a typematrix keyboard is connected
+Switch automatically between azerty and dvorak if a TypeMatrix keyboard is connected.
+
+## Features
+
+- 🔄 Automatic keyboard layout switching (Dvorak ↔ AZERTY)
+- 🖥️ System tray icon with current layout indicator
+- 📋 Log viewer with syntax highlighting
+- 🌓 Dark/Light theme support (follows Windows settings)
+- 🚀 Launch at Windows startup option
+- 🔄 Auto-updates via GitHub Releases
 
 ## Usage
 
 ```sh
-$env:DOTNET_CLI_TELEMETRY_OPTOUT=1;  dotnet run
+$env:DOTNET_CLI_TELEMETRY_OPTOUT=1; dotnet run
 ```
 
-## Windows Service
+## Installation
 
-Build and install as a Windows Service (no external tools required):
+### Option 1: Installer (recommended)
 
-**Note:** Logs are written to `C:\ProgramData\KeyboardAutoSwitcher\logs\log-YYYYMMDD.txt` for troubleshooting.
+1. Download the latest `KeyboardAutoSwitcher-win-x64-Setup.exe` from [Releases](https://github.com/jdeniau/keyboard-auto-switcher/releases)
+2. Run the installer
+3. Done! The app will start automatically with Windows and check for updates.
 
-1. Publish a Release build (self-contained optional):
+### Option 2: Manual installation
+
+1. Publish a Release build (self-contained):
 
 ```pwsh
 dotnet publish -c Release -r win-x64 --self-contained true
@@ -25,51 +38,45 @@ dotnet publish -c Release -r win-x64 --self-contained true
 
 Publish output: `bin/Release/net7.0-windows/win-x64/publish/keyboard-auto-switcher.exe`
 
-2. Install the service (run PowerShell as Administrator):
+**Note:** Logs are written to `C:\ProgramData\KeyboardAutoSwitcher\logs\log-YYYYMMDD.txt` for troubleshooting.
+
+2. Right-click on the system tray icon and enable "Lancer au démarrage de Windows" to start automatically.
+
+## Building the installer
+
+This project uses [Velopack](https://velopack.io/) for packaging and auto-updates.
+
+### Prerequisites
+
+1. Install the Velopack CLI:
 
 ```pwsh
-$svcName = "KeyboardAutoSwitcher"
-$exe = (Resolve-Path "$PWD/bin/Release/net7.0-windows/win-x64/publish/keyboard-auto-switcher.exe").Path
-# IMPORTANT: run this in an elevated (Administrator) PowerShell, otherwise you'll get "Accès refusé" (Access denied)
-sc.exe create "$svcName" binPath= "`"$exe`"" start= auto DisplayName= "Keyboard Auto Switcher"
-sc.exe description $svcName "Automatically switch between AZERTY and Dvorak when Typematrix is connected"
+dotnet tool install -g vpk
 ```
 
-3. Start/Stop the service:
+### Build and package
+
+1. Build the release:
 
 ```pwsh
-Start-Service KeyboardAutoSwitcher
-# Stop-Service KeyboardAutoSwitcher
+dotnet publish -c Release -r win-x64 --self-contained true
 ```
 
-4. Uninstall the service:
+2. Create the Velopack package:
 
 ```pwsh
-sc.exe stop KeyboardAutoSwitcher
-sc.exe delete KeyboardAutoSwitcher
+vpk pack --packId KeyboardAutoSwitcher --packVersion 1.0.0 --packDir .\bin\Release\net7.0-windows\win-x64\publish\ --mainExe KeyboardAutoSwitcher.exe
 ```
 
-### Alternative: Scheduled Task (recommended for desktop interaction)
+The installer and update files will be created in the `Releases/` folder:
 
-Windows Services run in Session 0 and cannot interact with the user desktop (foreground window). Since this app needs to switch the active input language for the signed-in user, a Scheduled Task set to run at logon is often more reliable.
+- `KeyboardAutoSwitcher-win-x64-Setup.exe` - Installer
+- `KeyboardAutoSwitcher-1.0.0-win-x64-full.nupkg` - Full package for updates
+- `RELEASES` - Release manifest
 
-Create a task that runs at user logon (no admin required):
+### Publishing updates
 
-```pwsh
-$taskName = "KeyboardAutoSwitcher"
-$exe = (Resolve-Path "$PWD/bin/Release/net7.0-windows/win-x64/publish/keyboard-auto-switcher.exe").Path
-$action = New-ScheduledTaskAction -Execute $exe -WorkingDirectory (Split-Path $exe)
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Description "Auto-switch keyboard layout when Typematrix is connected" -RunLevel Highest -User $env:USERNAME
-```
-
-Start/Stop the task:
-
-```pwsh
-Start-ScheduledTask -TaskName KeyboardAutoSwitcher
-Stop-ScheduledTask -TaskName KeyboardAutoSwitcher
-Unregister-ScheduledTask -TaskName KeyboardAutoSwitcher -Confirm:$false
-```
+Upload all files from the `Releases/` folder to GitHub Releases. The app will automatically detect and offer updates to users.
 
 ## Tests
 
