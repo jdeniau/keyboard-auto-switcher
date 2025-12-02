@@ -19,6 +19,7 @@ public class TrayApplicationContext : ApplicationContext
     private Icon _dvorakIcon;
     private Icon _azertyIcon;
     private Icon _defaultIcon;
+    private LogViewerForm? _logViewerForm;
 
     public TrayApplicationContext(IHost host)
     {
@@ -45,7 +46,8 @@ public class TrayApplicationContext : ApplicationContext
         contextMenu.Items.Add(_statusMenuItem);
         contextMenu.Items.Add(_keyboardMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
-        contextMenu.Items.Add("Ouvrir les logs", null, OnOpenLogs);
+        contextMenu.Items.Add("📋 Afficher les logs", null, OnShowLogViewer);
+        contextMenu.Items.Add("📁 Ouvrir le dossier de logs", null, OnOpenLogsFolder);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add("Quitter", null, OnExit);
 
@@ -96,7 +98,7 @@ public class TrayApplicationContext : ApplicationContext
 
         UpdateIcon(e.LayoutName, e.IsExternalKeyboard);
         _statusMenuItem.Text = $"Layout: {e.LayoutName}";
-        
+
         // Show balloon notification on change (only if not initial)
         if (!e.IsInitial)
         {
@@ -116,8 +118,8 @@ public class TrayApplicationContext : ApplicationContext
             return;
         }
 
-        _keyboardMenuItem.Text = e.IsConnected 
-            ? "Clavier: TypeMatrix connecté ✓" 
+        _keyboardMenuItem.Text = e.IsConnected
+            ? "Clavier: TypeMatrix connecté ✓"
             : "Clavier: TypeMatrix non détecté";
     }
 
@@ -128,7 +130,7 @@ public class TrayApplicationContext : ApplicationContext
             _notifyIcon.Icon = _dvorakIcon;
             _notifyIcon.Text = "Keyboard Auto Switcher - Dvorak";
         }
-        else if (layoutName.Contains("French", StringComparison.OrdinalIgnoreCase) || 
+        else if (layoutName.Contains("French", StringComparison.OrdinalIgnoreCase) ||
                  layoutName.Contains("AZERTY", StringComparison.OrdinalIgnoreCase))
         {
             _notifyIcon.Icon = _azertyIcon;
@@ -143,10 +145,40 @@ public class TrayApplicationContext : ApplicationContext
 
     private void OnNotifyIconDoubleClick(object? sender, EventArgs e)
     {
-        OnOpenLogs(sender, e);
+        OnShowLogViewer(sender, e);
     }
 
-    private void OnOpenLogs(object? sender, EventArgs e)
+    private void OnShowLogViewer(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_logViewerForm == null || _logViewerForm.IsDisposed)
+            {
+                _logViewerForm = new LogViewerForm();
+            }
+
+            if (_logViewerForm.Visible)
+            {
+                _logViewerForm.BringToFront();
+                _logViewerForm.Activate();
+            }
+            else
+            {
+                _logViewerForm.Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to open log viewer");
+            MessageBox.Show(
+                $"Erreur lors de l'ouverture du visualiseur de logs: {ex.Message}",
+                "Keyboard Auto Switcher",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private void OnOpenLogsFolder(object? sender, EventArgs e)
     {
         try
         {
@@ -183,6 +215,10 @@ public class TrayApplicationContext : ApplicationContext
         // Hide icon immediately
         _notifyIcon.Visible = false;
 
+        // Close log viewer if open
+        _logViewerForm?.Close();
+        _logViewerForm?.Dispose();
+
         try
         {
             _cts.Cancel();
@@ -207,6 +243,7 @@ public class TrayApplicationContext : ApplicationContext
     {
         if (disposing)
         {
+            _logViewerForm?.Dispose();
             _notifyIcon?.Dispose();
             _dvorakIcon?.Dispose();
             _azertyIcon?.Dispose();

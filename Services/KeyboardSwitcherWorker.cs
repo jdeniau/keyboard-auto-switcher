@@ -157,22 +157,22 @@ public class KeyboardSwitcherWorker : BackgroundService
             {
                 _logger.LogInformation("Switching to {Layout}...", targetLayout.DisplayName);
                 SetKeyboardLayout(targetLayout);
-                
+
                 // Notify UI about layout change
                 LayoutChanged?.Invoke(this, new LayoutChangedEventArgs(
-                    targetLayout.DisplayName, 
+                    targetLayout.DisplayName,
                     isExternalKeyboardConnected,
                     _isFirstCheck));
             }
             else
             {
                 _logger.LogDebug("Already using {Layout}", currentLayout.DisplayName);
-                
+
                 // Still notify UI on first check
                 if (_isFirstCheck)
                 {
                     LayoutChanged?.Invoke(this, new LayoutChangedEventArgs(
-                        currentLayout.DisplayName, 
+                        currentLayout.DisplayName,
                         isExternalKeyboardConnected,
                         true));
                 }
