@@ -30,13 +30,12 @@ jobs:
             - name: Build and publish
               run: dotnet publish -c Release -r win-x64 --self-contained true
 
-            - name: Get version from tag
+            - name: Get version from project
               id: version
               shell: pwsh
               run: |
-                  $tag = "${{ github.event.release.tag_name }}"
-                  # Remove 'v' prefix if present
-                  $version = $tag -replace '^v', ''
+                  [xml]$csproj = Get-Content "keyboard-auto-switcher.csproj"
+                  $version = $csproj.Project.PropertyGroup.Version
                   echo "VERSION=$version" >> $env:GITHUB_OUTPUT
 
             - name: Create Velopack package
