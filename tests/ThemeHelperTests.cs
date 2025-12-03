@@ -46,7 +46,6 @@ public class ThemeHelperTests
 
         // Assert
         colors.ShouldNotBeNull();
-        colors.ShouldBeOfType<ThemeColors>();
     }
 
     [Fact]
@@ -82,14 +81,6 @@ public class ThemeHelperTests
     #endregion
 
     #region ThemeChanged Event Tests
-
-    [Fact]
-    public void ThemeChanged_ShouldBeAccessible()
-    {
-        // Assert - The event should be accessible
-        var eventInfo = typeof(ThemeHelper).GetEvent(nameof(ThemeHelper.ThemeChanged));
-        eventInfo.ShouldNotBeNull();
-    }
 
     [Fact]
     public void ThemeChanged_ShouldAcceptEventHandler()

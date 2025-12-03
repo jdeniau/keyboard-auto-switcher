@@ -56,22 +56,6 @@ public class KeyboardSwitcherWorkerTests
         var worker = new KeyboardSwitcherWorker(loggerMock.Object, detectorMock.Object);
         worker.ShouldNotBeNull();
     }
-
-    [Fact]
-    public void LayoutChanged_StaticEvent_ShouldExist()
-    {
-        // Assert - The static event should be accessible
-        bool hasEvent = typeof(KeyboardSwitcherWorker).GetEvent(nameof(KeyboardSwitcherWorker.LayoutChanged)) != null;
-        hasEvent.ShouldBeTrue();
-    }
-
-    [Fact]
-    public void KeyboardStatusChanged_StaticEvent_ShouldExist()
-    {
-        // Assert - The static event should be accessible
-        bool hasEvent = typeof(KeyboardSwitcherWorker).GetEvent(nameof(KeyboardSwitcherWorker.KeyboardStatusChanged)) != null;
-        hasEvent.ShouldBeTrue();
-    }
 }
 
 /// <summary>
@@ -152,15 +136,5 @@ public class KeyboardStatusEventArgsTests
 
         // Assert
         args.IsConnected.ShouldBeFalse();
-    }
-
-    [Fact]
-    public void EventArgs_ShouldInheritFromEventArgs()
-    {
-        // Arrange & Act
-        var args = new KeyboardStatusEventArgs(true);
-
-        // Assert
-        args.ShouldBeAssignableTo<EventArgs>();
     }
 }

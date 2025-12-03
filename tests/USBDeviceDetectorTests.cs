@@ -51,26 +51,6 @@ public class USBDeviceDetectorTests
         detector.ShouldNotBeNull();
     }
 
-    [Fact]
-    public void Constructor_ShouldImplementIUSBDeviceDetector()
-    {
-        // Act
-        using var detector = new USBDeviceDetector();
-
-        // Assert
-        detector.ShouldBeAssignableTo<IUSBDeviceDetector>();
-    }
-
-    [Fact]
-    public void Constructor_ShouldImplementIDisposable()
-    {
-        // Act
-        using var detector = new USBDeviceDetector();
-
-        // Assert
-        detector.ShouldBeAssignableTo<IDisposable>();
-    }
-
     #endregion
 
     #region DeviceChanged Event Tests

@@ -9,7 +9,6 @@
     <Version>1.0.1</Version>
     <AssemblyName>KeyboardAutoSwitcher</AssemblyName>
     <RootNamespace>KeyboardAutoSwitcher</RootNamespace>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>

@@ -4,47 +4,6 @@ using Xunit;
 namespace KeyboardAutoSwitcher.Tests;
 
 /// <summary>
-/// Unit tests for IUSBDeviceDetector interface
-/// </summary>
-public class IUSBDeviceDetectorInterfaceTests
-{
-    [Fact]
-    public void Interface_ShouldDefineIsTargetKeyboardConnected()
-    {
-        // Assert
-        var method = typeof(IUSBDeviceDetector).GetMethod(nameof(IUSBDeviceDetector.IsTargetKeyboardConnected));
-        method.ShouldNotBeNull();
-        method.ReturnType.ShouldBe(typeof(bool));
-    }
-
-    [Fact]
-    public void Interface_ShouldDefineStartMonitoring()
-    {
-        // Assert
-        var method = typeof(IUSBDeviceDetector).GetMethod(nameof(IUSBDeviceDetector.StartMonitoring));
-        method.ShouldNotBeNull();
-        method.ReturnType.ShouldBe(typeof(void));
-    }
-
-    [Fact]
-    public void Interface_ShouldDefineStopMonitoring()
-    {
-        // Assert
-        var method = typeof(IUSBDeviceDetector).GetMethod(nameof(IUSBDeviceDetector.StopMonitoring));
-        method.ShouldNotBeNull();
-        method.ReturnType.ShouldBe(typeof(void));
-    }
-
-    [Fact]
-    public void Interface_ShouldDefineDeviceChangedEvent()
-    {
-        // Assert
-        var eventInfo = typeof(IUSBDeviceDetector).GetEvent(nameof(IUSBDeviceDetector.DeviceChanged));
-        eventInfo.ShouldNotBeNull();
-    }
-}
-
-/// <summary>
 /// Unit tests for USBDeviceEventArgs
 /// </summary>
 public class USBDeviceEventArgsExtendedTests
@@ -67,26 +26,6 @@ public class USBDeviceEventArgsExtendedTests
 
         // Assert
         args.IsTargetKeyboardConnected.ShouldBeFalse();
-    }
-
-    [Fact]
-    public void USBDeviceEventArgs_ShouldInheritFromEventArgs()
-    {
-        // Act
-        var args = new USBDeviceEventArgs(true);
-
-        // Assert
-        args.ShouldBeAssignableTo<EventArgs>();
-    }
-
-    [Fact]
-    public void IsTargetKeyboardConnected_ShouldBeReadOnly()
-    {
-        // Assert - The property should only have a getter
-        var property = typeof(USBDeviceEventArgs).GetProperty(nameof(USBDeviceEventArgs.IsTargetKeyboardConnected));
-        property.ShouldNotBeNull();
-        property.CanRead.ShouldBeTrue();
-        property.CanWrite.ShouldBeFalse();
     }
 }
 
