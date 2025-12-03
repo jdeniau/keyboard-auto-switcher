@@ -72,8 +72,12 @@ public class UpdateManagerTests
         // Act - This may return null if offline or on CI
         var result = await UpdateManager.CheckForUpdatesAsync();
 
-        // Assert - Result can be null (no updates) or UpdateInfo
-        (result == null || result != null).ShouldBeTrue();
+        // Assert - Test that method completes without throwing
+        // Result may be null (no updates available) or non-null (update available)
+        if (result != null)
+        {
+            result.TargetFullRelease.ShouldNotBeNull();
+        }
     }
 
     #endregion
@@ -86,12 +90,15 @@ public class UpdateManagerTests
         // Act
         var (available, newVersion) = await UpdateManager.CheckForUpdatesSilentAsync();
 
-        // Assert - Should return a valid tuple
-        available.ShouldBeOneOf(true, false);
-        
+        // Assert - Method should complete without throwing
+        // and return consistent values
         if (available)
         {
             newVersion.ShouldNotBeNull();
+        }
+        else
+        {
+            newVersion.ShouldBeNull();
         }
     }
 
@@ -120,13 +127,12 @@ public class StartupManagerTests
     #region IsStartupEnabled Tests
 
     [Fact]
-    public void IsStartupEnabled_ShouldReturnBoolean()
+    public void IsStartupEnabled_ShouldNotThrow()
     {
-        // Act
-        var result = StartupManager.IsStartupEnabled;
-
-        // Assert
-        result.ShouldBeOneOf(true, false);
+        // Act - Property access should not throw
+        _ = StartupManager.IsStartupEnabled;
+        
+        // Assert - Method completed without exception
     }
 
     [Fact]
@@ -145,7 +151,7 @@ public class StartupManagerTests
     #region ToggleStartup Tests
 
     [Fact]
-    public void ToggleStartup_ShouldReturnBoolean()
+    public void ToggleStartup_ShouldCompleteWithoutThrowing()
     {
         // Arrange
         bool initialState = StartupManager.IsStartupEnabled;
@@ -159,8 +165,7 @@ public class StartupManagerTests
             StartupManager.ToggleStartup();
         }
 
-        // Assert
-        result.ShouldBeOneOf(true, false);
+        // Assert - Method completed, result indicates success or failure
     }
 
     #endregion
@@ -168,7 +173,7 @@ public class StartupManagerTests
     #region EnableStartup Tests
 
     [Fact]
-    public void EnableStartup_ShouldReturnBoolean()
+    public void EnableStartup_ShouldCompleteWithoutThrowing()
     {
         // Act
         bool result = StartupManager.EnableStartup();
@@ -179,8 +184,7 @@ public class StartupManagerTests
             StartupManager.DisableStartup();
         }
 
-        // Assert
-        result.ShouldBeOneOf(true, false);
+        // Assert - Method completed, result indicates success or failure
     }
 
     #endregion
@@ -188,13 +192,12 @@ public class StartupManagerTests
     #region DisableStartup Tests
 
     [Fact]
-    public void DisableStartup_ShouldReturnBoolean()
+    public void DisableStartup_ShouldCompleteWithoutThrowing()
     {
         // Act
-        bool result = StartupManager.DisableStartup();
+        _ = StartupManager.DisableStartup();
 
-        // Assert
-        result.ShouldBeOneOf(true, false);
+        // Assert - Method completed without exception
     }
 
     [Fact]

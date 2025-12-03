@@ -13,13 +13,12 @@ public class ThemeHelperTests
     #region IsDarkMode Tests
 
     [Fact]
-    public void IsDarkMode_ShouldReturnBoolean()
+    public void IsDarkMode_ShouldNotThrow()
     {
         // Act - This will attempt to read from registry, falling back to true on non-Windows
-        var result = ThemeHelper.IsDarkMode;
-
-        // Assert - Should be a valid boolean value
-        result.ShouldBeOneOf(true, false);
+        _ = ThemeHelper.IsDarkMode;
+        
+        // Assert - Property access completed without exception
     }
 
     [Fact]

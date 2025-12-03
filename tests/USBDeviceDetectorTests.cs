@@ -231,11 +231,12 @@ public class USBDeviceDetectorTests
         // Arrange
         using var detector = new USBDeviceDetector();
 
-        // Act
-        bool result = detector.IsTargetKeyboardConnected();
-
-        // Assert - Should return a valid boolean (actual value depends on hardware)
-        result.ShouldBeOneOf(true, false);
+        // Act - Test method completes without throwing
+        // The actual value depends on whether a TypeMatrix keyboard is connected
+        _ = detector.IsTargetKeyboardConnected();
+        
+        // Assert - Method execution completed successfully
+        // No assertion needed as we're testing that the method doesn't throw
     }
 
     [Fact]
