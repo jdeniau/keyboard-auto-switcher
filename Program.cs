@@ -64,6 +64,26 @@ internal class Program
         }
     }
 
+    /// <summary>
+    /// Registers common services used by both GUI and Service modes
+    /// </summary>
+    private static void RegisterCommonServices(IServiceCollection services)
+    {
+        services.AddSerilog();
+
+        // Register registry service
+        services.AddSingleton<IRegistryService, WindowsRegistryService>();
+
+        // Register USB device detector
+        services.AddSingleton<IUSBDeviceDetector, USBDeviceDetector>();
+
+        // Register startup manager
+        services.AddSingleton<IStartupManager, StartupManager>();
+
+        // Register background worker
+        services.AddHostedService<KeyboardSwitcherWorker>();
+    }
+
     private static void RunAsGuiApplication(string[] args)
     {
         Application.EnableVisualStyles();
@@ -71,39 +91,31 @@ internal class Program
         Application.SetHighDpiMode(HighDpiMode.SystemAware);
 
         var builder = Host.CreateApplicationBuilder(args);
-        builder.Services.AddSerilog();
+        RegisterCommonServices(builder.Services);
 
-        // Register USB device detector
-        builder.Services.AddSingleton<IUSBDeviceDetector, USBDeviceDetector>();
-
-        // Register update manager
+        // GUI-specific: Register update manager
         builder.Services.AddSingleton<IUpdateManager, UpdateService>();
-
-        builder.Services.AddHostedService<KeyboardSwitcherWorker>();
 
         var host = builder.Build();
 
-        // Resolve update manager from DI container
+        // Resolve services from DI container
         var updateManager = host.Services.GetRequiredService<IUpdateManager>();
+        var startupManager = host.Services.GetRequiredService<IStartupManager>();
 
-        using var context = new TrayApplicationContext(host, updateManager);
+        using var context = new TrayApplicationContext(host, updateManager, startupManager);
         Application.Run(context);
     }
 
     private static void RunAsService(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);
+        RegisterCommonServices(builder.Services);
 
-        builder.Services.AddSerilog();
+        // Service-specific: Configure Windows Service
         builder.Services.AddWindowsService(options =>
         {
             options.ServiceName = "Keyboard Auto Switcher";
         });
-
-        // Register USB device detector
-        builder.Services.AddSingleton<IUSBDeviceDetector, USBDeviceDetector>();
-
-        builder.Services.AddHostedService<KeyboardSwitcherWorker>();
 
         var app = builder.Build();
         app.Run();
