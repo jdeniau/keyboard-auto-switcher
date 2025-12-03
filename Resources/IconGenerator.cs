@@ -1,83 +1,83 @@
-using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 
-namespace KeyboardAutoSwitcher.Resources;
-
-/// <summary>
-/// Generates icons programmatically for the system tray
-/// </summary>
-public static class IconGenerator
+namespace KeyboardAutoSwitcher.Resources
 {
-    private const int IconSize = 32;
-
     /// <summary>
-    /// Creates an icon with the specified text (keyboard layout indicator)
+    /// Generates icons programmatically for the system tray
     /// </summary>
-    public static Icon CreateLayoutIcon(string text, Color backgroundColor, Color textColor)
+    public static class IconGenerator
     {
-        using var bitmap = new Bitmap(IconSize, IconSize);
-        using var graphics = Graphics.FromImage(bitmap);
+        private const int IconSize = 32;
 
-        graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+        /// <summary>
+        /// Creates an icon with the specified text (keyboard layout indicator)
+        /// </summary>
+        public static Icon CreateLayoutIcon(string text, Color backgroundColor, Color textColor)
+        {
+            using Bitmap bitmap = new(IconSize, IconSize);
+            using Graphics graphics = Graphics.FromImage(bitmap);
 
-        // Draw rounded rectangle background
-        using var backgroundBrush = new SolidBrush(backgroundColor);
-        using var path = CreateRoundedRectangle(1, 1, IconSize - 2, IconSize - 2, 6);
-        graphics.FillPath(backgroundBrush, path);
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
-        // Draw border
-        using var borderPen = new Pen(Color.FromArgb(60, 0, 0, 0), 1);
-        graphics.DrawPath(borderPen, path);
+            // Draw rounded rectangle background
+            using SolidBrush backgroundBrush = new(backgroundColor);
+            using GraphicsPath path = CreateRoundedRectangle(1, 1, IconSize - 2, IconSize - 2, 6);
+            graphics.FillPath(backgroundBrush, path);
 
-        // Draw text
-        using var font = new Font("Segoe UI", 11, FontStyle.Bold);
-        using var textBrush = new SolidBrush(textColor);
+            // Draw border
+            using Pen borderPen = new(Color.FromArgb(60, 0, 0, 0), 1);
+            graphics.DrawPath(borderPen, path);
 
-        var textSize = graphics.MeasureString(text, font);
-        float x = (IconSize - textSize.Width) / 2;
-        float y = (IconSize - textSize.Height) / 2;
+            // Draw text
+            using Font font = new("Segoe UI", 11, FontStyle.Bold);
+            using SolidBrush textBrush = new(textColor);
 
-        graphics.DrawString(text, font, textBrush, x, y);
+            SizeF textSize = graphics.MeasureString(text, font);
+            float x = (IconSize - textSize.Width) / 2;
+            float y = (IconSize - textSize.Height) / 2;
 
-        return Icon.FromHandle(bitmap.GetHicon());
-    }
+            graphics.DrawString(text, font, textBrush, x, y);
 
-    /// <summary>
-    /// Creates a Dvorak layout icon (green with "DV")
-    /// </summary>
-    public static Icon CreateDvorakIcon()
-    {
-        return CreateLayoutIcon("DV", Color.FromArgb(76, 175, 80), Color.White);
-    }
+            return Icon.FromHandle(bitmap.GetHicon());
+        }
 
-    /// <summary>
-    /// Creates an AZERTY layout icon (blue with "AZ")
-    /// </summary>
-    public static Icon CreateAzertyIcon()
-    {
-        return CreateLayoutIcon("AZ", Color.FromArgb(33, 150, 243), Color.White);
-    }
+        /// <summary>
+        /// Creates a Dvorak layout icon (green with "DV")
+        /// </summary>
+        public static Icon CreateDvorakIcon()
+        {
+            return CreateLayoutIcon("DV", Color.FromArgb(76, 175, 80), Color.White);
+        }
 
-    /// <summary>
-    /// Creates a default/unknown layout icon (gray with "?")
-    /// </summary>
-    public static Icon CreateDefaultIcon()
-    {
-        return CreateLayoutIcon("KB", Color.FromArgb(158, 158, 158), Color.White);
-    }
+        /// <summary>
+        /// Creates an AZERTY layout icon (blue with "AZ")
+        /// </summary>
+        public static Icon CreateAzertyIcon()
+        {
+            return CreateLayoutIcon("AZ", Color.FromArgb(33, 150, 243), Color.White);
+        }
 
-    private static GraphicsPath CreateRoundedRectangle(float x, float y, float width, float height, float radius)
-    {
-        var path = new GraphicsPath();
+        /// <summary>
+        /// Creates a default/unknown layout icon (gray with "?")
+        /// </summary>
+        public static Icon CreateDefaultIcon()
+        {
+            return CreateLayoutIcon("KB", Color.FromArgb(158, 158, 158), Color.White);
+        }
 
-        path.AddArc(x, y, radius * 2, radius * 2, 180, 90);
-        path.AddArc(x + width - radius * 2, y, radius * 2, radius * 2, 270, 90);
-        path.AddArc(x + width - radius * 2, y + height - radius * 2, radius * 2, radius * 2, 0, 90);
-        path.AddArc(x, y + height - radius * 2, radius * 2, radius * 2, 90, 90);
-        path.CloseFigure();
+        private static GraphicsPath CreateRoundedRectangle(float x, float y, float width, float height, float radius)
+        {
+            GraphicsPath path = new();
 
-        return path;
+            path.AddArc(x, y, radius * 2, radius * 2, 180, 90);
+            path.AddArc(x + width - (radius * 2), y, radius * 2, radius * 2, 270, 90);
+            path.AddArc(x + width - (radius * 2), y + height - (radius * 2), radius * 2, radius * 2, 0, 90);
+            path.AddArc(x, y + height - (radius * 2), radius * 2, radius * 2, 90, 90);
+            path.CloseFigure();
+
+            return path;
+        }
     }
 }

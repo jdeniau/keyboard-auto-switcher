@@ -1,123 +1,120 @@
+using System.Reflection;
 using Serilog;
 using Velopack;
 using Velopack.Locators;
 using Velopack.Sources;
 
-namespace KeyboardAutoSwitcher.Services;
-
-/// <summary>
-/// Manages application updates via Velopack and GitHub Releases
-/// </summary>
-public class UpdateService : IUpdateManager
+namespace KeyboardAutoSwitcher.Services
 {
-    private const string GitHubRepoUrl = "https://github.com/jdeniau/keyboard-auto-switcher";
-
-    private readonly Velopack.UpdateManager _updateManager;
-
     /// <summary>
-    /// Creates a new UpdateService with default Velopack configuration.
-    /// Use this constructor for production.
+    /// Manages application updates via Velopack and GitHub Releases
     /// </summary>
-    public UpdateService() : this(locator: null)
-    {
-    }
-
-    /// <summary>
+    /// <remarks>
     /// Creates a new UpdateService with a custom Velopack locator (for testing).
-    /// </summary>
+    /// </remarks>
     /// <param name="locator">Custom Velopack locator for testing, or null for default</param>
-    public UpdateService(IVelopackLocator? locator)
+    public class UpdateService(IVelopackLocator? locator) : IUpdateManager
     {
-        _updateManager = new Velopack.UpdateManager(
-            new GithubSource(GitHubRepoUrl, null, false),
-            options: null,
-            locator: locator);
-    }
+        private const string GitHubRepoUrl = "https://github.com/jdeniau/keyboard-auto-switcher";
 
-    /// <summary>
-    /// Gets the current application version
-    /// </summary>
-    public string CurrentVersion
-    {
-        get
+        private readonly UpdateManager _updateManager = new(
+                new GithubSource(GitHubRepoUrl, null, false),
+                options: null,
+                locator: locator);
+
+        /// <summary>
+        /// Creates a new UpdateService with default Velopack configuration.
+        /// Use this constructor for production.
+        /// </summary>
+        public UpdateService() : this(locator: null)
+        {
+        }
+
+        /// <summary>
+        /// Gets the current application version
+        /// </summary>
+        public string CurrentVersion
+        {
+            get
+            {
+                try
+                {
+                    Assembly? assembly = Assembly.GetEntryAssembly();
+                    Version? version = assembly?.GetName().Version;
+                    return version?.ToString(3) ?? "1.0.0";
+                }
+                catch
+                {
+                    return "1.0.0";
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks for available updates
+        /// </summary>
+        /// <returns>Update info if available, null otherwise</returns>
+        public async Task<UpdateInfo?> CheckForUpdatesAsync()
         {
             try
             {
-                var assembly = System.Reflection.Assembly.GetEntryAssembly();
-                var version = assembly?.GetName().Version;
-                return version?.ToString(3) ?? "1.0.0";
+                UpdateInfo? updateInfo = await _updateManager.CheckForUpdatesAsync();
+
+                if (updateInfo != null)
+                {
+                    Log.Information("Update available: {Version}", updateInfo.TargetFullRelease.Version);
+                }
+                else
+                {
+                    Log.Debug("No updates available");
+                }
+
+                return updateInfo;
             }
-            catch
+            catch (Exception ex)
             {
-                return "1.0.0";
+                Log.Warning(ex, "Failed to check for updates");
+                return null;
             }
         }
-    }
 
-    /// <summary>
-    /// Checks for available updates
-    /// </summary>
-    /// <returns>Update info if available, null otherwise</returns>
-    public async Task<UpdateInfo?> CheckForUpdatesAsync()
-    {
-        try
+        /// <summary>
+        /// Downloads and applies the update, then restarts the application
+        /// </summary>
+        public async Task<bool> DownloadAndApplyUpdateAsync(UpdateInfo updateInfo, Action<int>? progressCallback = null)
         {
-            var updateInfo = await _updateManager.CheckForUpdatesAsync();
+            try
+            {
+                Log.Information("Downloading update {Version}...", updateInfo.TargetFullRelease.Version);
+
+                await _updateManager.DownloadUpdatesAsync(updateInfo, progressCallback);
+
+                Log.Information("Update downloaded, applying and restarting...");
+
+                _updateManager.ApplyUpdatesAndRestart(updateInfo);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to download and apply update");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Checks for updates silently and returns true if an update is available
+        /// </summary>
+        public async Task<(bool Available, string? NewVersion)> CheckForUpdatesSilentAsync()
+        {
+            UpdateInfo? updateInfo = await CheckForUpdatesAsync();
 
             if (updateInfo != null)
             {
-                Log.Information("Update available: {Version}", updateInfo.TargetFullRelease.Version);
-            }
-            else
-            {
-                Log.Debug("No updates available");
+                return (true, updateInfo.TargetFullRelease.Version.ToString());
             }
 
-            return updateInfo;
+            return (false, null);
         }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Failed to check for updates");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Downloads and applies the update, then restarts the application
-    /// </summary>
-    public async Task<bool> DownloadAndApplyUpdateAsync(UpdateInfo updateInfo, Action<int>? progressCallback = null)
-    {
-        try
-        {
-            Log.Information("Downloading update {Version}...", updateInfo.TargetFullRelease.Version);
-
-            await _updateManager.DownloadUpdatesAsync(updateInfo, progressCallback);
-
-            Log.Information("Update downloaded, applying and restarting...");
-
-            _updateManager.ApplyUpdatesAndRestart(updateInfo);
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to download and apply update");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Checks for updates silently and returns true if an update is available
-    /// </summary>
-    public async Task<(bool Available, string? NewVersion)> CheckForUpdatesSilentAsync()
-    {
-        var updateInfo = await CheckForUpdatesAsync();
-
-        if (updateInfo != null)
-        {
-            return (true, updateInfo.TargetFullRelease.Version.ToString());
-        }
-
-        return (false, null);
     }
 }
