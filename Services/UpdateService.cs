@@ -13,26 +13,25 @@ public class UpdateService : IUpdateManager
     private const string GitHubRepoUrl = "https://github.com/jdeniau/keyboard-auto-switcher";
 
     private readonly Velopack.UpdateManager _updateManager;
-    private readonly IVelopackLocator? _locator;
 
     /// <summary>
-    /// Creates a new UpdateService with default Velopack configuration
+    /// Creates a new UpdateService with default Velopack configuration.
+    /// Use this constructor for production.
     /// </summary>
-    public UpdateService() : this(null)
+    public UpdateService() : this(locator: null)
     {
     }
 
     /// <summary>
-    /// Creates a new UpdateService with optional custom locator (for testing)
+    /// Creates a new UpdateService with a custom Velopack locator (for testing).
     /// </summary>
-    /// <param name="locator">Optional Velopack locator for testing</param>
+    /// <param name="locator">Custom Velopack locator for testing, or null for default</param>
     public UpdateService(IVelopackLocator? locator)
     {
-        _locator = locator;
         _updateManager = new Velopack.UpdateManager(
             new GithubSource(GitHubRepoUrl, null, false),
-            null,
-            locator);
+            options: null,
+            locator: locator);
     }
 
     /// <summary>

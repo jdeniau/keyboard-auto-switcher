@@ -1,6 +1,5 @@
 using KeyboardAutoSwitcher.Services;
 using Moq;
-using NuGet.Versioning;
 using Shouldly;
 using Velopack;
 using Velopack.Locators;
@@ -13,23 +12,24 @@ namespace KeyboardAutoSwitcher.Tests;
 /// </summary>
 public class UpdateServiceTests
 {
-    private static Mock<IVelopackLocator> CreateMockLocator()
+    private static TestVelopackLocator CreateTestLocator()
     {
-        var mockLocator = new Mock<IVelopackLocator>();
-        mockLocator.Setup(l => l.AppId).Returns("KeyboardAutoSwitcher");
-        mockLocator.Setup(l => l.CurrentlyInstalledVersion).Returns(new SemanticVersion(1, 2, 3));
-        mockLocator.Setup(l => l.IsPortable).Returns(false);
-        return mockLocator;
+        var tempDir = Path.Combine(Path.GetTempPath(), "velopack-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        return new TestVelopackLocator(
+            appId: "KeyboardAutoSwitcher",
+            version: "1.2.3",
+            packagesDir: tempDir);
     }
 
     [Fact]
     public void Constructor_WithLocator_ShouldNotThrow()
     {
         // Arrange
-        var mockLocator = CreateMockLocator();
+        var testLocator = CreateTestLocator();
 
         // Act & Assert - Should not throw
-        var service = new UpdateService(mockLocator.Object);
+        var service = new UpdateService(testLocator);
         service.ShouldNotBeNull();
     }
 
@@ -37,8 +37,8 @@ public class UpdateServiceTests
     public void CurrentVersion_ShouldReturnValidVersion()
     {
         // Arrange
-        var mockLocator = CreateMockLocator();
-        var service = new UpdateService(mockLocator.Object);
+        var testLocator = CreateTestLocator();
+        var service = new UpdateService(testLocator);
 
         // Act
         var version = service.CurrentVersion;
@@ -53,8 +53,8 @@ public class UpdateServiceTests
     public void CurrentVersion_MultipleCalls_ShouldReturnSameValue()
     {
         // Arrange
-        var mockLocator = CreateMockLocator();
-        var service = new UpdateService(mockLocator.Object);
+        var testLocator = CreateTestLocator();
+        var service = new UpdateService(testLocator);
 
         // Act
         var version1 = service.CurrentVersion;

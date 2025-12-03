@@ -1,4 +1,5 @@
 ﻿using KeyboardAutoSwitcher;
+using KeyboardAutoSwitcher.Logging;
 using KeyboardAutoSwitcher.Services;
 using KeyboardAutoSwitcher.UI;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +13,10 @@ internal class Program
     public static void Main(string[] args)
     {
         // Velopack must be the first thing to run
-        VelopackApp.Build().Run();
+        // SetLogger redirects Velopack internal logs to our Serilog logger
+        VelopackApp.Build()
+            .SetLogger(new SerilogVelopackLogger())
+            .Run();
 
         // Configure Serilog
         var logPath = Path.Combine(
@@ -93,7 +97,7 @@ internal class Program
         var builder = Host.CreateApplicationBuilder(args);
         RegisterCommonServices(builder.Services);
 
-        // GUI-specific: Register update manager
+        // GUI-specific: Register update manager with Velopack
         builder.Services.AddSingleton<IUpdateManager, UpdateService>();
 
         var host = builder.Build();
