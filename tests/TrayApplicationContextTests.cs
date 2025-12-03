@@ -11,6 +11,10 @@ namespace KeyboardAutoSwitcher.Tests;
 /// </summary>
 public class TrayApplicationContextTests
 {
+    // Constants matching the actual UI strings in TrayApplicationContext
+    private const string KeyboardConnectedText = "Clavier: TypeMatrix connecté ✓";
+    private const string KeyboardDisconnectedText = "Clavier: TypeMatrix non détecté";
+
     #region LayoutChangedEventArgs Tests
 
     [Fact]
@@ -221,12 +225,10 @@ public class TrayApplicationContextTests
         var isConnected = true;
 
         // Act - Simulate OnKeyboardStatusChanged logic
-        var text = isConnected
-            ? "Clavier: TypeMatrix connecté ✓"
-            : "Clavier: TypeMatrix non détecté";
+        var text = isConnected ? KeyboardConnectedText : KeyboardDisconnectedText;
 
         // Assert
-        text.ShouldBe("Clavier: TypeMatrix connecté ✓");
+        text.ShouldBe(KeyboardConnectedText);
         text.ShouldContain("✓");
     }
 
@@ -237,12 +239,10 @@ public class TrayApplicationContextTests
         var isConnected = false;
 
         // Act - Simulate OnKeyboardStatusChanged logic
-        var text = isConnected
-            ? "Clavier: TypeMatrix connecté ✓"
-            : "Clavier: TypeMatrix non détecté";
+        var text = isConnected ? KeyboardConnectedText : KeyboardDisconnectedText;
 
         // Assert
-        text.ShouldBe("Clavier: TypeMatrix non détecté");
+        text.ShouldBe(KeyboardDisconnectedText);
         text.ShouldNotContain("✓");
     }
 
