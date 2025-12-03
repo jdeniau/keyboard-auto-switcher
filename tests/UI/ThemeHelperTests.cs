@@ -8,8 +8,15 @@ namespace KeyboardAutoSwitcher.Tests;
 /// Unit tests for ThemeHelper class
 /// Note: Some functionality requires Windows registry access
 /// </summary>
-public class ThemeHelperTests
+[Collection("ThemeHelper")]
+public class ThemeHelperTests : IDisposable
 {
+    public void Dispose()
+    {
+        // Ensure monitoring is stopped after each test to prevent side effects
+        ThemeHelper.StopMonitoring();
+    }
+
     #region IsDarkMode Tests
 
     [Fact]

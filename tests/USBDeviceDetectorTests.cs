@@ -1,10 +1,11 @@
+using Moq;
 using Shouldly;
 using Xunit;
 
 namespace KeyboardAutoSwitcher.Tests;
 
 /// <summary>
-/// Unit tests for USBDeviceDetector class
+/// Unit tests for USBDeviceDetector (USBDeviceDetector.cs)
 /// </summary>
 public class USBDeviceDetectorTests
 {
@@ -61,10 +62,11 @@ public class USBDeviceDetectorTests
         // Arrange
         using var detector = new USBDeviceDetector();
         bool eventSubscribed = false;
+        EventHandler<USBDeviceEventArgs> handler = (s, e) => eventSubscribed = true;
 
         // Act
-        detector.DeviceChanged += (s, e) => eventSubscribed = true;
-        detector.DeviceChanged -= (s, e) => eventSubscribed = true;
+        detector.DeviceChanged += handler;
+        detector.DeviceChanged -= handler;
 
         // Assert - Should be able to subscribe and unsubscribe
         eventSubscribed.ShouldBeFalse();
@@ -206,20 +208,6 @@ public class USBDeviceDetectorTests
     #region IsTargetKeyboardConnected Tests
 
     [Fact]
-    public void IsTargetKeyboardConnected_ShouldReturnBoolean()
-    {
-        // Arrange
-        using var detector = new USBDeviceDetector();
-
-        // Act - Test method completes without throwing
-        // The actual value depends on whether a TypeMatrix keyboard is connected
-        _ = detector.IsTargetKeyboardConnected();
-        
-        // Assert - Method execution completed successfully
-        // No assertion needed as we're testing that the method doesn't throw
-    }
-
-    [Fact]
     public void IsTargetKeyboardConnected_MultipleCallsShouldBeConsistent()
     {
         // Arrange
@@ -231,6 +219,67 @@ public class USBDeviceDetectorTests
 
         // Assert - Should return consistent results (assuming no hardware changes)
         result1.ShouldBe(result2);
+    }
+
+    #endregion
+
+    #region USBDeviceEventArgs Tests
+
+    [Fact]
+    public void USBDeviceEventArgs_WithTrue_ShouldSetIsTargetKeyboardConnected()
+    {
+        // Act
+        var args = new USBDeviceEventArgs(true);
+
+        // Assert
+        args.IsTargetKeyboardConnected.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void USBDeviceEventArgs_WithFalse_ShouldSetIsTargetKeyboardConnected()
+    {
+        // Act
+        var args = new USBDeviceEventArgs(false);
+
+        // Assert
+        args.IsTargetKeyboardConnected.ShouldBeFalse();
+    }
+
+    #endregion
+
+    #region IUSBDeviceDetector Mock Tests
+
+    [Fact]
+    public void MockDetector_IsTargetKeyboardConnected_ShouldReturnConfiguredValue()
+    {
+        // Arrange
+        var mockDetector = new Mock<IUSBDeviceDetector>();
+        mockDetector.Setup(d => d.IsTargetKeyboardConnected()).Returns(true);
+
+        // Act
+        bool result = mockDetector.Object.IsTargetKeyboardConnected();
+
+        // Assert
+        result.ShouldBeTrue();
+        mockDetector.Verify(d => d.IsTargetKeyboardConnected(), Times.Once);
+    }
+
+    [Fact]
+    public void MockDetector_SequenceOfCalls_ShouldReturnDifferentValues()
+    {
+        // Arrange
+        var mockDetector = new Mock<IUSBDeviceDetector>();
+        mockDetector.SetupSequence(d => d.IsTargetKeyboardConnected())
+            .Returns(false)  // First call - disconnected
+            .Returns(true)   // Second call - connected
+            .Returns(true)   // Third call - still connected
+            .Returns(false); // Fourth call - disconnected
+
+        // Act & Assert
+        mockDetector.Object.IsTargetKeyboardConnected().ShouldBeFalse();
+        mockDetector.Object.IsTargetKeyboardConnected().ShouldBeTrue();
+        mockDetector.Object.IsTargetKeyboardConnected().ShouldBeTrue();
+        mockDetector.Object.IsTargetKeyboardConnected().ShouldBeFalse();
     }
 
     #endregion

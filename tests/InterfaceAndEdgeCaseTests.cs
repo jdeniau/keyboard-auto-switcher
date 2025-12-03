@@ -30,106 +30,43 @@ public class USBDeviceEventArgsExtendedTests
 }
 
 /// <summary>
-/// Additional tests for KeyboardLayouts to ensure edge cases are covered
+/// Edge case tests for KeyboardLayouts boundary values
 /// </summary>
 public class KeyboardLayoutsEdgeCaseTests
 {
-    [Fact]
-    public void UsDvorak_GetLanguageId_ShouldReturn0x0409()
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    [InlineData(int.MinValue)]
+    public void GetByLayoutId_WithInvalidValue_ShouldReturnNull(int layoutId)
     {
         // Act
-        var langId = KeyboardLayouts.UsDvorak.GetLanguageId();
-
-        // Assert
-        langId.ShouldBe(0x0409);
-    }
-
-    [Fact]
-    public void FrenchStandard_GetLanguageId_ShouldReturn0x040C()
-    {
-        // Act
-        var langId = KeyboardLayouts.FrenchStandard.GetLanguageId();
-
-        // Assert
-        langId.ShouldBe(0x040C);
-    }
-
-    [Fact]
-    public void GetByLayoutId_WithNegativeValue_ShouldReturnNull()
-    {
-        // Act
-        var result = KeyboardLayouts.GetByLayoutId(-1);
+        var result = KeyboardLayouts.GetByLayoutId(layoutId);
 
         // Assert
         result.ShouldBeNull();
     }
 
-    [Fact]
-    public void GetByLayoutId_WithMaxValue_ShouldReturnNull()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void GetByLanguageId_WithInvalidValue_ShouldReturnNull(int languageId)
     {
         // Act
-        var result = KeyboardLayouts.GetByLayoutId(int.MaxValue);
+        var result = KeyboardLayouts.GetByLanguageId(languageId);
 
         // Assert
         result.ShouldBeNull();
     }
 
-    [Fact]
-    public void GetByLayoutId_WithMinValue_ShouldReturnNull()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("EN-US")]  // Case-sensitive
+    [InlineData(" en-US ")] // Whitespace
+    public void GetByCultureName_WithInvalidInput_ShouldReturnNull(string? cultureName)
     {
         // Act
-        var result = KeyboardLayouts.GetByLayoutId(int.MinValue);
-
-        // Assert
-        result.ShouldBeNull();
-    }
-
-    [Fact]
-    public void GetByLanguageId_WithZero_ShouldReturnNull()
-    {
-        // Act
-        var result = KeyboardLayouts.GetByLanguageId(0);
-
-        // Assert
-        result.ShouldBeNull();
-    }
-
-    [Fact]
-    public void GetByLanguageId_WithNegativeValue_ShouldReturnNull()
-    {
-        // Act
-        var result = KeyboardLayouts.GetByLanguageId(-1);
-
-        // Assert
-        result.ShouldBeNull();
-    }
-
-    [Fact]
-    public void GetByCultureName_WithNull_ShouldReturnNull()
-    {
-        // Act
-        var result = KeyboardLayouts.GetByCultureName(null!);
-
-        // Assert
-        result.ShouldBeNull();
-    }
-
-    [Fact]
-    public void GetByCultureName_WithMixedCase_ShouldReturnNull()
-    {
-        // Note: Culture names are case-sensitive in the current implementation
-        // Act
-        var result = KeyboardLayouts.GetByCultureName("EN-US");
-
-        // Assert
-        result.ShouldBeNull();
-    }
-
-    [Fact]
-    public void GetByCultureName_WithWhitespace_ShouldReturnNull()
-    {
-        // Act
-        var result = KeyboardLayouts.GetByCultureName(" en-US ");
+        var result = KeyboardLayouts.GetByCultureName(cultureName!);
 
         // Assert
         result.ShouldBeNull();
@@ -137,23 +74,10 @@ public class KeyboardLayoutsEdgeCaseTests
 }
 
 /// <summary>
-/// Tests for KeyboardLayoutConfig edge cases
+/// Edge case tests for KeyboardLayoutConfig
 /// </summary>
 public class KeyboardLayoutConfigEdgeCaseTests
 {
-    [Fact]
-    public void GetLanguageId_WithLargeLayoutId_ShouldMaskCorrectly()
-    {
-        // Arrange
-        var config = new KeyboardLayoutConfig("en-US", unchecked((int)0xFFFF0409), "Test");
-
-        // Act
-        var langId = config.GetLanguageId();
-
-        // Assert - Should only return lower 16 bits
-        langId.ShouldBe(0x0409);
-    }
-
     [Fact]
     public void Constructor_WithEmptyStrings_ShouldWork()
     {

@@ -167,37 +167,61 @@ public class IconGeneratorTests
     [Fact]
     public void DvorakIcon_ShouldUseGreenBackground()
     {
-        // The expected color is defined in IconGenerator.CreateDvorakIcon()
-        // Color.FromArgb(76, 175, 80) - Material Design Green
-        var expectedGreen = Color.FromArgb(76, 175, 80);
+        // Arrange
+        var expectedColor = Color.FromArgb(76, 175, 80); // Material Design Green
 
-        // Assert - We can't directly test the color used, but we verify the method works
+        // Act
         using var icon = IconGenerator.CreateDvorakIcon();
-        icon.ShouldNotBeNull();
+        using var bitmap = icon.ToBitmap();
+        
+        // Check a pixel that should be background (top-left area, inside rounded rect but outside text)
+        // Rect starts at 1,1 with radius 6. 
+        // Pixel at 16, 2 should be background (top center, above text)
+        var pixel = bitmap.GetPixel(16, 2);
+
+        // Assert
+        // Allow small tolerance for color conversion/rendering
+        ((int)pixel.R).ShouldBeInRange(expectedColor.R - 5, expectedColor.R + 5);
+        ((int)pixel.G).ShouldBeInRange(expectedColor.G - 5, expectedColor.G + 5);
+        ((int)pixel.B).ShouldBeInRange(expectedColor.B - 5, expectedColor.B + 5);
     }
 
     [Fact]
     public void AzertyIcon_ShouldUseBlueBackground()
     {
-        // The expected color is defined in IconGenerator.CreateAzertyIcon()
-        // Color.FromArgb(33, 150, 243) - Material Design Blue
-        var expectedBlue = Color.FromArgb(33, 150, 243);
+        // Arrange
+        var expectedColor = Color.FromArgb(33, 150, 243); // Material Design Blue
 
-        // Assert - We can't directly test the color used, but we verify the method works
+        // Act
         using var icon = IconGenerator.CreateAzertyIcon();
-        icon.ShouldNotBeNull();
+        using var bitmap = icon.ToBitmap();
+        
+        // Check a pixel that should be background
+        var pixel = bitmap.GetPixel(16, 2);
+
+        // Assert
+        ((int)pixel.R).ShouldBeInRange(expectedColor.R - 5, expectedColor.R + 5);
+        ((int)pixel.G).ShouldBeInRange(expectedColor.G - 5, expectedColor.G + 5);
+        ((int)pixel.B).ShouldBeInRange(expectedColor.B - 5, expectedColor.B + 5);
     }
 
     [Fact]
     public void DefaultIcon_ShouldUseGrayBackground()
     {
-        // The expected color is defined in IconGenerator.CreateDefaultIcon()
-        // Color.FromArgb(158, 158, 158) - Material Design Gray
-        var expectedGray = Color.FromArgb(158, 158, 158);
+        // Arrange
+        var expectedColor = Color.FromArgb(158, 158, 158); // Material Design Gray
 
-        // Assert - We can't directly test the color used, but we verify the method works
+        // Act
         using var icon = IconGenerator.CreateDefaultIcon();
-        icon.ShouldNotBeNull();
+        using var bitmap = icon.ToBitmap();
+        
+        // Check a pixel that should be background
+        var pixel = bitmap.GetPixel(16, 2);
+
+        // Assert
+        ((int)pixel.R).ShouldBeInRange(expectedColor.R - 5, expectedColor.R + 5);
+        ((int)pixel.G).ShouldBeInRange(expectedColor.G - 5, expectedColor.G + 5);
+        ((int)pixel.B).ShouldBeInRange(expectedColor.B - 5, expectedColor.B + 5);
     }
 
     #endregion

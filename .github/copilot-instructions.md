@@ -28,7 +28,7 @@ A Windows-native GUI application with system tray that automatically switches ke
 - `IsTargetKeyboardConnected()`, `StartMonitoring()`, `StopMonitoring()`
 - `DeviceChanged` event with `USBDeviceEventArgs`
 
-**USBDeviceInfo.cs** - USB device monitoring implementation
+**USBDeviceDetector.cs** - USB device monitoring implementation
 
 - Implements `IUSBDeviceDetector` interface
 - Detects TypeMatrix via hardcoded VID/PID: `USB\VID_1E54&PID_2030\`
@@ -153,7 +153,7 @@ dotnet publish -c Release -r win-x64 --self-contained true
 
 **Adjusting delays**: Tune `Task.Delay()` calls in event handlers - 500ms for session events, 2000ms for resume.
 
-**Detecting different keyboard**: Update `USBDeviceInfo.KeyboardInstanceName` with target VID/PID (format: `USB\VID_XXXX&PID_XXXX\`).
+**Detecting different keyboard**: Update `USBDeviceDetector.KeyboardInstanceName` with target VID/PID (format: `USB\VID_XXXX&PID_XXXX\`).
 
 **Customizing tray icons**: Modify `Resources/IconGenerator.cs` - colors and text labels for each layout state.
 
@@ -161,9 +161,15 @@ dotnet publish -c Release -r win-x64 --self-contained true
 
 ## Testing
 
-- Unit tests in `tests/` folder using xUnit
-- `IUSBDeviceDetector` interface allows mocking USB detection
-- Test files: `KeyboardLayoutConfigTests.cs`, `KeyboardLayoutsTests.cs`, `USBDeviceDetectorMockTests.cs`, `USBDeviceInfoTests.cs`
+- Unit tests in `tests/` folder using xUnit + Shouldly + Moq
+- Test file structure mirrors source files:
+  - `tests/KeyboardLayoutConfigTests.cs` → `KeyboardLayoutConfig.cs`
+  - `tests/KeyboardLayoutTests.cs` → `KeyboardLayout.cs`
+  - `tests/USBDeviceDetectorTests.cs` → `USBDeviceDetector.cs`
+  - `tests/Services/` → `Services/`
+  - `tests/UI/` → `UI/`
+  - `tests/Resources/` → `Resources/`
+- `IUSBDeviceDetector` and `IUpdateManager` interfaces allow mocking in tests
 - Run tests: `dotnet test`
 - Memory/CPU tests: `test-memory.ps1`, `test-cpu.ps1` (see `MEMORY_TESTS.md`)
 - Logs provide diagnostic detail for event triggering

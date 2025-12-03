@@ -76,11 +76,17 @@ internal class Program
         // Register USB device detector
         builder.Services.AddSingleton<IUSBDeviceDetector, USBDeviceDetector>();
 
+        // Register update manager
+        builder.Services.AddSingleton<IUpdateManager, UpdateService>();
+
         builder.Services.AddHostedService<KeyboardSwitcherWorker>();
 
         var host = builder.Build();
 
-        using var context = new TrayApplicationContext(host);
+        // Resolve update manager from DI container
+        var updateManager = host.Services.GetRequiredService<IUpdateManager>();
+
+        using var context = new TrayApplicationContext(host, updateManager);
         Application.Run(context);
     }
 

@@ -10,6 +10,7 @@ namespace KeyboardAutoSwitcher.Tests;
 /// <summary>
 /// Unit tests for KeyboardSwitcherWorker
 /// </summary>
+[Collection("KeyboardSwitcherWorker")]
 public class KeyboardSwitcherWorkerTests
 {
     /// <summary>
