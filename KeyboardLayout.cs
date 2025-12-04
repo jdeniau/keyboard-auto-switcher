@@ -1,140 +1,144 @@
 using System.Runtime.InteropServices;
 
-namespace KeyboardAutoSwitcher;
-
-/// <summary>
-/// Manages keyboard layout operations through Win32 API
-/// Handles listing, getting current layout, and activating layouts
-/// </summary>
-internal static class KeyboardLayout
+namespace KeyboardAutoSwitcher
 {
-    // Win32 API imports
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
-
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetKeyboardLayout(uint idThread);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr ActivateKeyboardLayout(IntPtr hkl, uint flags);
-
-    [DllImport("user32.dll")]
-    private static extern int GetKeyboardLayoutList(int nBuff, [Out] IntPtr[] lpList);
-
-    [DllImport("user32.dll")]
-    private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    // Constants
-    private const uint KLF_ACTIVATE = 0x00000001;
-    private const uint WM_INPUTLANGCHANGEREQUEST = 0x0050;
-    private const int HWND_BROADCAST = 0xFFFF;
-
-    private static IntPtr[]? _cachedLayoutHandles;
-
     /// <summary>
-    /// Gets all available keyboard layouts installed on the system
+    /// Manages keyboard layout operations through Win32 API
+    /// Handles listing, getting current layout, and activating layouts
     /// </summary>
-    public static IntPtr[] GetAvailableLayouts()
+    internal static class KeyboardLayout
     {
-        int layoutCount = GetKeyboardLayoutList(0, Array.Empty<IntPtr>());
-        var layoutHandles = new IntPtr[layoutCount];
-        GetKeyboardLayoutList(layoutCount, layoutHandles);
-        return layoutHandles;
-    }
+        // Win32 API imports
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
 
-    /// <summary>
-    /// Refreshes the cache of available keyboard layouts
-    /// </summary>
-    public static void RefreshLayoutCache()
-    {
-        _cachedLayoutHandles = GetAvailableLayouts();
-    }
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
 
-    /// <summary>
-    /// Gets the currently active keyboard layout for the foreground window
-    /// </summary>
-    public static KeyboardLayoutConfig? GetCurrentLayout()
-    {
-        IntPtr hwnd = GetForegroundWindow();
-        uint threadId = GetWindowThreadProcessId(hwnd, IntPtr.Zero);
-        IntPtr hkl = GetKeyboardLayout(threadId);
-        int layoutId = (int)hkl;
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetKeyboardLayout(uint idThread);
 
-        return KeyboardLayouts.GetByLayoutId(layoutId)
-            ?? KeyboardLayouts.GetByLanguageId(layoutId & 0xFFFF);
-    }
+        [DllImport("user32.dll")]
+        private static extern IntPtr ActivateKeyboardLayout(IntPtr hkl, uint flags);
 
-    /// <summary>
-    /// Gets the layout ID of the currently active keyboard layout
-    /// </summary>
-    public static int GetCurrentLayoutId()
-    {
-        IntPtr hwnd = GetForegroundWindow();
-        uint threadId = GetWindowThreadProcessId(hwnd, IntPtr.Zero);
-        IntPtr hkl = GetKeyboardLayout(threadId);
-        return (int)hkl;
-    }
+        [DllImport("user32.dll")]
+        private static extern int GetKeyboardLayoutList(int nBuff, [Out] IntPtr[] lpList);
 
-    /// <summary>
-    /// Activates the specified keyboard layout
-    /// </summary>
-    public static void ActivateLayout(KeyboardLayoutConfig targetLayoutConfig)
-    {
-        // Ensure cache is initialized
-        if (_cachedLayoutHandles == null || _cachedLayoutHandles.Length == 0)
+        [DllImport("user32.dll")]
+        private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        // Constants
+        private const uint KLF_ACTIVATE = 0x00000001;
+        private const uint WM_INPUTLANGCHANGEREQUEST = 0x0050;
+        private const int HWND_BROADCAST = 0xFFFF;
+
+        private static IntPtr[]? _cachedLayoutHandles;
+
+        /// <summary>
+        /// Gets all available keyboard layouts installed on the system
+        /// </summary>
+        public static IntPtr[] GetAvailableLayouts()
         {
-            RefreshLayoutCache();
+            int layoutCount = GetKeyboardLayoutList(0, []);
+            nint[] layoutHandles = new IntPtr[layoutCount];
+            _ = GetKeyboardLayoutList(layoutCount, layoutHandles);
+            return layoutHandles;
         }
 
-        IntPtr targetLayout = FindLayoutHandle(_cachedLayoutHandles!, targetLayoutConfig);
-        if (targetLayout == IntPtr.Zero)
+        /// <summary>
+        /// Refreshes the cache of available keyboard layouts
+        /// </summary>
+        public static void RefreshLayoutCache()
         {
-            throw new InvalidOperationException($"Layout not installed: {targetLayoutConfig.DisplayName}");
+            _cachedLayoutHandles = GetAvailableLayouts();
         }
 
-        ActivateKeyboardLayout(targetLayout, KLF_ACTIVATE);
-
-        // Notify all windows about the layout change
-        IntPtr foregroundWindow = GetForegroundWindow();
-        if (foregroundWindow != IntPtr.Zero)
+        /// <summary>
+        /// Gets the currently active keyboard layout for the foreground window
+        /// </summary>
+        public static KeyboardLayoutConfig? GetCurrentLayout()
         {
-            PostMessage(foregroundWindow, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, targetLayout);
+            IntPtr hwnd = GetForegroundWindow();
+            uint threadId = GetWindowThreadProcessId(hwnd, IntPtr.Zero);
+            IntPtr hkl = GetKeyboardLayout(threadId);
+            int layoutId = (int)hkl;
+
+            return KeyboardLayouts.GetByLayoutId(layoutId)
+                ?? KeyboardLayouts.GetByLanguageId(layoutId & 0xFFFF);
         }
-        PostMessage((IntPtr)HWND_BROADCAST, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, targetLayout);
-    }
 
-    /// <summary>
-    /// Finds the handle for a specific keyboard layout
-    /// </summary>
-    private static IntPtr FindLayoutHandle(IntPtr[] layoutHandles, KeyboardLayoutConfig targetLayoutConfig)
-    {
-        // Try exact match first
-        foreach (IntPtr hkl in layoutHandles)
+        /// <summary>
+        /// Gets the layout ID of the currently active keyboard layout
+        /// </summary>
+        public static int GetCurrentLayoutId()
         {
-            if ((int)hkl == targetLayoutConfig.LayoutId)
+            IntPtr hwnd = GetForegroundWindow();
+            uint threadId = GetWindowThreadProcessId(hwnd, IntPtr.Zero);
+            IntPtr hkl = GetKeyboardLayout(threadId);
+            return (int)hkl;
+        }
+
+        /// <summary>
+        /// Activates the specified keyboard layout
+        /// </summary>
+        public static void ActivateLayout(KeyboardLayoutConfig targetLayoutConfig)
+        {
+            // Ensure cache is initialized
+            if (_cachedLayoutHandles == null || _cachedLayoutHandles.Length == 0)
             {
-                return hkl;
+                RefreshLayoutCache();
             }
-        }
 
-        // Fallback to language ID match
-        int targetLangId = targetLayoutConfig.GetLanguageId();
-        foreach (IntPtr hkl in layoutHandles)
-        {
-            if (((int)hkl & 0xFFFF) == targetLangId)
+            IntPtr targetLayout = FindLayoutHandle(_cachedLayoutHandles!, targetLayoutConfig);
+            if (targetLayout == IntPtr.Zero)
             {
-                return hkl;
+                throw new InvalidOperationException($"Layout not installed: {targetLayoutConfig.DisplayName}");
             }
+
+            _ = ActivateKeyboardLayout(targetLayout, KLF_ACTIVATE);
+
+            // Notify all windows about the layout change
+            IntPtr foregroundWindow = GetForegroundWindow();
+            if (foregroundWindow != IntPtr.Zero)
+            {
+                _ = PostMessage(foregroundWindow, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, targetLayout);
+            }
+            _ = PostMessage(HWND_BROADCAST, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, targetLayout);
         }
 
-        return IntPtr.Zero;
-    }
+        /// <summary>
+        /// Finds the handle for a specific keyboard layout
+        /// </summary>
+        private static IntPtr FindLayoutHandle(IntPtr[] layoutHandles, KeyboardLayoutConfig targetLayoutConfig)
+        {
+            // Try exact match first
+            foreach (IntPtr hkl in layoutHandles)
+            {
+                if ((int)hkl == targetLayoutConfig.LayoutId)
+                {
+                    return hkl;
+                }
+            }
 
-    /// <summary>
-    /// Gets cached layout handles for debugging purposes
-    /// </summary>
-    public static IntPtr[]? GetCachedLayoutHandles() => _cachedLayoutHandles;
+            // Fallback to language ID match
+            int targetLangId = targetLayoutConfig.GetLanguageId();
+            foreach (IntPtr hkl in layoutHandles)
+            {
+                if (((int)hkl & 0xFFFF) == targetLangId)
+                {
+                    return hkl;
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        /// <summary>
+        /// Gets cached layout handles for debugging purposes
+        /// </summary>
+        public static IntPtr[]? GetCachedLayoutHandles()
+        {
+            return _cachedLayoutHandles;
+        }
+    }
 }

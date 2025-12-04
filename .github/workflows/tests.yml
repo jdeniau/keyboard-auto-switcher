@@ -24,6 +24,9 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
+      - name: Check code style
+        run: dotnet format keyboard-auto-switcher.sln --verify-no-changes
+
       - name: Run tests with coverage
         run: dotnet test tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage-report
 

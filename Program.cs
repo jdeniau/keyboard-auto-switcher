@@ -1,4 +1,4 @@
-﻿using KeyboardAutoSwitcher;
+using KeyboardAutoSwitcher;
 using KeyboardAutoSwitcher.Logging;
 using KeyboardAutoSwitcher.Services;
 using KeyboardAutoSwitcher.UI;
@@ -19,13 +19,13 @@ internal class Program
             .Run();
 
         // Configure Serilog
-        var logPath = Path.Combine(
+        string logPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "KeyboardAutoSwitcher",
             "logs",
             "log.txt"
         );
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
 
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
@@ -56,7 +56,7 @@ internal class Program
         catch (Exception ex)
         {
             Log.Fatal(ex, "Application terminated unexpectedly");
-            MessageBox.Show(
+            _ = MessageBox.Show(
                 $"Erreur fatale: {ex.Message}\n\nConsultez les logs pour plus de détails.",
                 "Keyboard Auto Switcher",
                 MessageBoxButtons.OK,
@@ -73,55 +73,55 @@ internal class Program
     /// </summary>
     private static void RegisterCommonServices(IServiceCollection services)
     {
-        services.AddSerilog();
+        _ = services.AddSerilog();
 
         // Register registry service
-        services.AddSingleton<IRegistryService, WindowsRegistryService>();
+        _ = services.AddSingleton<IRegistryService, WindowsRegistryService>();
 
         // Register USB device detector
-        services.AddSingleton<IUSBDeviceDetector, USBDeviceDetector>();
+        _ = services.AddSingleton<IUSBDeviceDetector, USBDeviceDetector>();
 
         // Register startup manager
-        services.AddSingleton<IStartupManager, StartupManager>();
+        _ = services.AddSingleton<IStartupManager, StartupManager>();
 
         // Register background worker
-        services.AddHostedService<KeyboardSwitcherWorker>();
+        _ = services.AddHostedService<KeyboardSwitcherWorker>();
     }
 
     private static void RunAsGuiApplication(string[] args)
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        Application.SetHighDpiMode(HighDpiMode.SystemAware);
+        _ = Application.SetHighDpiMode(HighDpiMode.SystemAware);
 
-        var builder = Host.CreateApplicationBuilder(args);
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
         RegisterCommonServices(builder.Services);
 
         // GUI-specific: Register update manager with Velopack
-        builder.Services.AddSingleton<IUpdateManager, UpdateService>();
+        _ = builder.Services.AddSingleton<IUpdateManager, UpdateService>();
 
-        var host = builder.Build();
+        IHost host = builder.Build();
 
         // Resolve services from DI container
-        var updateManager = host.Services.GetRequiredService<IUpdateManager>();
-        var startupManager = host.Services.GetRequiredService<IStartupManager>();
+        IUpdateManager updateManager = host.Services.GetRequiredService<IUpdateManager>();
+        IStartupManager startupManager = host.Services.GetRequiredService<IStartupManager>();
 
-        using var context = new TrayApplicationContext(host, updateManager, startupManager);
+        using TrayApplicationContext context = new(host, updateManager, startupManager);
         Application.Run(context);
     }
 
     private static void RunAsService(string[] args)
     {
-        var builder = Host.CreateApplicationBuilder(args);
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
         RegisterCommonServices(builder.Services);
 
         // Service-specific: Configure Windows Service
-        builder.Services.AddWindowsService(options =>
+        _ = builder.Services.AddWindowsService(options =>
         {
             options.ServiceName = "Keyboard Auto Switcher";
         });
 
-        var app = builder.Build();
+        IHost app = builder.Build();
         app.Run();
     }
 }
