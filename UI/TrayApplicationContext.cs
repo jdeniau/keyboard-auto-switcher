@@ -13,6 +13,8 @@ public class TrayApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _notifyIcon;
     private readonly IHost _host;
+    private readonly IUpdateManager _updateManager;
+    private readonly IStartupManager _startupManager;
     private readonly CancellationTokenSource _cts;
     private readonly ToolStripMenuItem _statusMenuItem;
     private readonly ToolStripMenuItem _keyboardMenuItem;
@@ -23,9 +25,11 @@ public class TrayApplicationContext : ApplicationContext
     private Icon _defaultIcon;
     private LogViewerForm? _logViewerForm;
 
-    public TrayApplicationContext(IHost host)
+    public TrayApplicationContext(IHost host, IUpdateManager updateManager, IStartupManager startupManager)
     {
         _host = host;
+        _updateManager = updateManager;
+        _startupManager = startupManager;
         _cts = new CancellationTokenSource();
 
         // Generate icons
@@ -46,12 +50,12 @@ public class TrayApplicationContext : ApplicationContext
 
         _startupMenuItem = new ToolStripMenuItem("Lancer au démarrage de Windows")
         {
-            Checked = StartupManager.IsStartupEnabled,
+            Checked = _startupManager.IsStartupEnabled,
             CheckOnClick = true
         };
         _startupMenuItem.Click += OnStartupToggle;
 
-        _updateMenuItem = new ToolStripMenuItem($"Version {UpdateManager.CurrentVersion}")
+        _updateMenuItem = new ToolStripMenuItem($"Version {_updateManager.CurrentVersion}")
         {
             Enabled = false
         };
@@ -112,7 +116,7 @@ public class TrayApplicationContext : ApplicationContext
     {
         try
         {
-            var (available, newVersion) = await UpdateManager.CheckForUpdatesSilentAsync();
+            var (available, newVersion) = await _updateManager.CheckForUpdatesSilentAsync();
 
             if (available && newVersion != null)
             {
@@ -152,11 +156,11 @@ public class TrayApplicationContext : ApplicationContext
 
         try
         {
-            var updateInfo = await UpdateManager.CheckForUpdatesAsync();
+            var updateInfo = await _updateManager.CheckForUpdatesAsync();
 
             if (updateInfo != null)
             {
-                await UpdateManager.DownloadAndApplyUpdateAsync(updateInfo, progress =>
+                await _updateManager.DownloadAndApplyUpdateAsync(updateInfo, progress =>
                 {
                     if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
                     {
@@ -249,11 +253,11 @@ public class TrayApplicationContext : ApplicationContext
             bool success;
             if (_startupMenuItem.Checked)
             {
-                success = StartupManager.EnableStartup();
+                success = _startupManager.EnableStartup();
             }
             else
             {
-                success = StartupManager.DisableStartup();
+                success = _startupManager.DisableStartup();
             }
 
             if (!success)

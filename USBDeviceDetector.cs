@@ -90,33 +90,3 @@ public class USBDeviceDetector : IUSBDeviceDetector, IDisposable
         GC.SuppressFinalize(this);
     }
 }
-
-/// <summary>
-/// Static helper for legacy compatibility
-/// </summary>
-static class USBDeviceInfo
-{
-    // The instance ID prefix for the TypeMatrix target keyboard device
-    public static string KeyboardInstanceName => USBDeviceDetector.KeyboardInstanceName;
-
-    /// <summary>
-    /// Check if the target keyboard is currently connected
-    /// </summary>
-    public static bool IsTargetKeyboardConnected()
-    {
-        using var detector = new USBDeviceDetector();
-        return detector.IsTargetKeyboardConnected();
-    }
-
-    /// <summary>
-    /// Create a watcher for USB device connection/disconnection events
-    /// </summary>
-    public static ManagementEventWatcher CreateUSBWatcher(EventArrivedEventHandler handler)
-    {
-        var watcher = new ManagementEventWatcher();
-        var query = new WqlEventQuery("SELECT * FROM __InstanceOperationEvent WITHIN 2 WHERE TargetInstance ISA 'Win32_USBHub'");
-        watcher.EventArrived += handler;
-        watcher.Query = query;
-        return watcher;
-    }
-}

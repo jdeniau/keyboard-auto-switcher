@@ -4,7 +4,7 @@ using Xunit;
 namespace KeyboardAutoSwitcher.Tests;
 
 /// <summary>
-/// Unit tests for KeyboardLayoutConfig class
+/// Unit tests for KeyboardLayoutConfig (KeyboardLayoutConfig.cs)
 /// </summary>
 public class KeyboardLayoutConfigTests
 {
@@ -23,6 +23,28 @@ public class KeyboardLayoutConfigTests
         config.CultureName.ShouldBe(cultureName);
         config.LayoutId.ShouldBe(layoutId);
         config.DisplayName.ShouldBe(displayName);
+    }
+
+    [Fact]
+    public void Constructor_WithEmptyStrings_ShouldWork()
+    {
+        // Arrange & Act
+        var config = new KeyboardLayoutConfig("", 0, "");
+
+        // Assert
+        config.CultureName.ShouldBe("");
+        config.LayoutId.ShouldBe(0);
+        config.DisplayName.ShouldBe("");
+    }
+
+    [Fact]
+    public void Constructor_WithSpecialCharacters_ShouldWork()
+    {
+        // Arrange & Act
+        var config = new KeyboardLayoutConfig("test-TEST", 123, "Special ! @ # $ %");
+
+        // Assert
+        config.DisplayName.ShouldBe("Special ! @ # $ %");
     }
 
     [Theory]

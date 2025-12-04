@@ -1,27 +1,37 @@
-using Microsoft.Win32;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace KeyboardAutoSwitcher.Services;
 
 /// <summary>
 /// Manages application startup with Windows
 /// </summary>
-public static class StartupManager
+public class StartupManager : IStartupManager
 {
     private const string RegistryKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string AppName = "KeyboardAutoSwitcher";
 
+    private readonly IRegistryService _registryService;
+    private readonly ILogger<StartupManager>? _logger;
+
     /// <summary>
-    /// Gets or sets whether the application starts with Windows
+    /// Creates a new StartupManager with the specified registry service
     /// </summary>
-    public static bool IsStartupEnabled
+    /// <param name="registryService">The registry service for Windows Registry operations</param>
+    /// <param name="logger">Optional logger for diagnostics</param>
+    public StartupManager(IRegistryService registryService, ILogger<StartupManager>? logger = null)
+    {
+        _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
+        _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public bool IsStartupEnabled
     {
         get
         {
             try
             {
-                using var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, false);
-                var value = key?.GetValue(AppName);
+                var value = _registryService.GetValue(RegistryKeyPath, AppName);
 
                 if (value is string path)
                 {
@@ -35,73 +45,65 @@ public static class StartupManager
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Failed to check startup status");
+                _logger?.LogWarning(ex, "Failed to check startup status");
                 return false;
             }
         }
     }
 
-    /// <summary>
-    /// Enables starting the application with Windows
-    /// </summary>
-    public static bool EnableStartup()
+    /// <inheritdoc />
+    public bool EnableStartup()
     {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, true);
-            if (key == null)
-            {
-                Log.Error("Failed to open registry key for startup");
-                return false;
-            }
-
             var executablePath = GetExecutablePath();
-            key.SetValue(AppName, $"\"{executablePath}\"");
+            var result = _registryService.SetValue(RegistryKeyPath, AppName, $"\"{executablePath}\"");
 
-            Log.Information("Startup enabled: {Path}", executablePath);
-            return true;
+            if (result)
+            {
+                _logger?.LogInformation("Startup enabled: {Path}", executablePath);
+            }
+            else
+            {
+                _logger?.LogError("Failed to open registry key for startup");
+            }
+
+            return result;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to enable startup");
+            _logger?.LogError(ex, "Failed to enable startup");
             return false;
         }
     }
 
-    /// <summary>
-    /// Disables starting the application with Windows
-    /// </summary>
-    public static bool DisableStartup()
+    /// <inheritdoc />
+    public bool DisableStartup()
     {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, true);
-            if (key == null)
+            var result = _registryService.DeleteValue(RegistryKeyPath, AppName);
+
+            if (result)
             {
-                Log.Error("Failed to open registry key for startup");
-                return false;
+                _logger?.LogInformation("Startup disabled");
+            }
+            else
+            {
+                _logger?.LogError("Failed to open registry key for startup");
             }
 
-            // Check if value exists before trying to delete
-            if (key.GetValue(AppName) != null)
-            {
-                key.DeleteValue(AppName, false);
-                Log.Information("Startup disabled");
-            }
-
-            return true;
+            return result;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to disable startup");
+            _logger?.LogError(ex, "Failed to disable startup");
             return false;
         }
     }
 
-    /// <summary>
-    /// Toggles the startup setting
-    /// </summary>
-    public static bool ToggleStartup()
+    /// <inheritdoc />
+    public bool ToggleStartup()
     {
         if (IsStartupEnabled)
         {

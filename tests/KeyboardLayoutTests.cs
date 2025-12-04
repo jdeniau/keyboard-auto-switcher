@@ -4,9 +4,9 @@ using Xunit;
 namespace KeyboardAutoSwitcher.Tests;
 
 /// <summary>
-/// Unit tests for KeyboardLayouts static class
+/// Unit tests for KeyboardLayouts (KeyboardLayout.cs)
 /// </summary>
-public class KeyboardLayoutsTests
+public class KeyboardLayoutTests
 {
     #region Predefined Layouts Tests
 
@@ -62,10 +62,13 @@ public class KeyboardLayoutsTests
     [InlineData("ja-JP")]
     [InlineData("unknown")]
     [InlineData("")]
-    public void GetByCultureName_WithUnknownCulture_ShouldReturnNull(string cultureName)
+    [InlineData(null)]
+    [InlineData("EN-US")]    // Case-sensitive
+    [InlineData(" en-US ")]  // Whitespace
+    public void GetByCultureName_WithInvalidInput_ShouldReturnNull(string? cultureName)
     {
         // Act
-        var result = KeyboardLayouts.GetByCultureName(cultureName);
+        var result = KeyboardLayouts.GetByCultureName(cultureName!);
 
         // Assert
         result.ShouldBeNull();
@@ -107,7 +110,10 @@ public class KeyboardLayoutsTests
     [InlineData(0x00000000)]
     [InlineData(0x04090409)]  // US QWERTY (not Dvorak)
     [InlineData(0x00070407)]  // German
-    public void GetByLayoutId_WithUnknownLayoutId_ShouldReturnNull(int layoutId)
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    [InlineData(int.MinValue)]
+    public void GetByLayoutId_WithInvalidLayoutId_ShouldReturnNull(int layoutId)
     {
         // Act
         var result = KeyboardLayouts.GetByLayoutId(layoutId);
@@ -151,8 +157,9 @@ public class KeyboardLayoutsTests
     [Theory]
     [InlineData(0x0407)]  // German
     [InlineData(0x0C0A)]  // Spanish
-    [InlineData(0x0000)]
-    public void GetByLanguageId_WithUnknownLangId_ShouldReturnNull(int langId)
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void GetByLanguageId_WithInvalidLangId_ShouldReturnNull(int langId)
     {
         // Act
         var result = KeyboardLayouts.GetByLanguageId(langId);

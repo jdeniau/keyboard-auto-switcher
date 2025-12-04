@@ -1,5 +1,6 @@
 using Serilog;
 using Velopack;
+using Velopack.Locators;
 using Velopack.Sources;
 
 namespace KeyboardAutoSwitcher.Services;
@@ -7,16 +8,36 @@ namespace KeyboardAutoSwitcher.Services;
 /// <summary>
 /// Manages application updates via Velopack and GitHub Releases
 /// </summary>
-public static class UpdateManager
+public class UpdateService : IUpdateManager
 {
     private const string GitHubRepoUrl = "https://github.com/jdeniau/keyboard-auto-switcher";
 
-    private static Velopack.UpdateManager? _updateManager;
+    private readonly Velopack.UpdateManager _updateManager;
+
+    /// <summary>
+    /// Creates a new UpdateService with default Velopack configuration.
+    /// Use this constructor for production.
+    /// </summary>
+    public UpdateService() : this(locator: null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new UpdateService with a custom Velopack locator (for testing).
+    /// </summary>
+    /// <param name="locator">Custom Velopack locator for testing, or null for default</param>
+    public UpdateService(IVelopackLocator? locator)
+    {
+        _updateManager = new Velopack.UpdateManager(
+            new GithubSource(GitHubRepoUrl, null, false),
+            options: null,
+            locator: locator);
+    }
 
     /// <summary>
     /// Gets the current application version
     /// </summary>
-    public static string CurrentVersion
+    public string CurrentVersion
     {
         get
         {
@@ -37,12 +58,10 @@ public static class UpdateManager
     /// Checks for available updates
     /// </summary>
     /// <returns>Update info if available, null otherwise</returns>
-    public static async Task<UpdateInfo?> CheckForUpdatesAsync()
+    public async Task<UpdateInfo?> CheckForUpdatesAsync()
     {
         try
         {
-            _updateManager ??= new Velopack.UpdateManager(new GithubSource(GitHubRepoUrl, null, false));
-
             var updateInfo = await _updateManager.CheckForUpdatesAsync();
 
             if (updateInfo != null)
@@ -66,14 +85,8 @@ public static class UpdateManager
     /// <summary>
     /// Downloads and applies the update, then restarts the application
     /// </summary>
-    public static async Task<bool> DownloadAndApplyUpdateAsync(UpdateInfo updateInfo, Action<int>? progressCallback = null)
+    public async Task<bool> DownloadAndApplyUpdateAsync(UpdateInfo updateInfo, Action<int>? progressCallback = null)
     {
-        if (_updateManager == null)
-        {
-            Log.Error("UpdateManager not initialized");
-            return false;
-        }
-
         try
         {
             Log.Information("Downloading update {Version}...", updateInfo.TargetFullRelease.Version);
@@ -96,7 +109,7 @@ public static class UpdateManager
     /// <summary>
     /// Checks for updates silently and returns true if an update is available
     /// </summary>
-    public static async Task<(bool Available, string? NewVersion)> CheckForUpdatesSilentAsync()
+    public async Task<(bool Available, string? NewVersion)> CheckForUpdatesSilentAsync()
     {
         var updateInfo = await CheckForUpdatesAsync();
 
