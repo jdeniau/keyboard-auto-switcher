@@ -1,50 +1,50 @@
 name: Release
 
 on:
-    workflow_dispatch: ~
-    release:
-        types: [published]
+  workflow_dispatch: ~
+  release:
+    types: [published]
 
 permissions:
-    contents: write
+  contents: write
 
 jobs:
-    build-and-release:
-        runs-on: windows-latest
+  build-and-release:
+    runs-on: windows-latest
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: "10.0.x"
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
 
-            - name: Install Velopack CLI
-              run: dotnet tool install -g vpk
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
 
-            - name: Restore dependencies
-              run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-            - name: Build and publish
-              run: dotnet publish -c Release -r win-x64 --self-contained true
+      - name: Build and publish
+        run: dotnet publish -c Release -r win-x64 --self-contained true
 
-            - name: Get version from project
-              id: version
-              shell: pwsh
-              run: |
-                  [xml]$csproj = Get-Content "keyboard-auto-switcher.csproj"
-                  $version = $csproj.Project.PropertyGroup.Version
-                  echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+      - name: Get version from project
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$csproj = Get-Content "keyboard-auto-switcher.csproj"
+          $version = $csproj.Project.PropertyGroup.Version
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
 
-            - name: Create Velopack package
-              run: vpk pack --packId KeyboardAutoSwitcher --packVersion ${{ steps.version.outputs.VERSION }} --packDir .\bin\Release\net10.0-windows\win-x64\publish\ --mainExe KeyboardAutoSwitcher.exe
+      - name: Create Velopack package
+        run: vpk pack --packId KeyboardAutoSwitcher --packVersion ${{ steps.version.outputs.VERSION }} --packDir .\bin\Release\net10.0-windows\win-x64\publish\ --mainExe KeyboardAutoSwitcher.exe
 
-            - name: Upload release assets
-              uses: softprops/action-gh-release@v2
-              with:
-                  files: Releases/*
-                  tag_name: ${{ steps.version.outputs.VERSION }}
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Releases/*
+          tag_name: v${{ steps.version.outputs.VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
