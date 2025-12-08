@@ -164,7 +164,7 @@ namespace KeyboardAutoSwitcher.UI
                     {
                         if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
                         {
-                            _ = _notifyIcon.ContextMenuStrip.Invoke(() =>
+                            _ = _notifyIcon.ContextMenuStrip.BeginInvoke(() =>
                                 _updateMenuItem.Text = $"⏳ Téléchargement: {progress}%");
                         }
                         else
@@ -190,7 +190,7 @@ namespace KeyboardAutoSwitcher.UI
         {
             if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
             {
-                _notifyIcon.ContextMenuStrip.Invoke(() => OnLayoutChanged(sender, e));
+                _ = _notifyIcon.ContextMenuStrip.BeginInvoke(() => OnLayoutChanged(sender, e));
                 return;
             }
 
@@ -212,7 +212,7 @@ namespace KeyboardAutoSwitcher.UI
         {
             if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
             {
-                _notifyIcon.ContextMenuStrip.Invoke(() => OnKeyboardStatusChanged(sender, e));
+                _ = _notifyIcon.ContextMenuStrip.BeginInvoke(() => OnKeyboardStatusChanged(sender, e));
                 return;
             }
 

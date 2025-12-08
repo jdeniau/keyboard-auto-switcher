@@ -16,9 +16,33 @@ namespace KeyboardAutoSwitcher
         public event EventHandler<USBDeviceEventArgs>? DeviceChanged;
 
         /// <summary>
-        /// Check if the target keyboard is currently connected
+        /// Check if the target keyboard is currently connected (with timeout to prevent freezes)
         /// </summary>
         public bool IsTargetKeyboardConnected()
+        {
+            try
+            {
+                Task<bool> task = Task.Run(QueryKeyboardConnection);
+                if (task.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    return task.Result;
+                }
+                // Timeout: retry once after a short delay
+                Task.Delay(500).Wait();
+                task = Task.Run(QueryKeyboardConnection);
+
+                return task.Wait(TimeSpan.FromSeconds(5)) && task.Result;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Performs the actual WMI query
+        /// </summary>
+        private bool QueryKeyboardConnection()
         {
             using ManagementObjectSearcher searcher = new(
                 @"Select PNPDeviceID From Win32_USBHub");
