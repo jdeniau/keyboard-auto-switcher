@@ -78,6 +78,9 @@ internal class Program
         // Register registry service
         _ = services.AddSingleton<IRegistryService, WindowsRegistryService>();
 
+        // Register configuration service
+        _ = services.AddSingleton<IConfigurationService, ConfigurationService>();
+
         // Register USB device detector
         _ = services.AddSingleton<IUSBDeviceDetector, USBDeviceDetector>();
 
@@ -105,8 +108,9 @@ internal class Program
         // Resolve services from DI container
         IUpdateManager updateManager = host.Services.GetRequiredService<IUpdateManager>();
         IStartupManager startupManager = host.Services.GetRequiredService<IStartupManager>();
+        IConfigurationService configService = host.Services.GetRequiredService<IConfigurationService>();
 
-        using TrayApplicationContext context = new(host, updateManager, startupManager);
+        using TrayApplicationContext context = new(host, updateManager, startupManager, configService);
         Application.Run(context);
     }
 
