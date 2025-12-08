@@ -15,6 +15,7 @@ namespace KeyboardAutoSwitcher.UI
         private readonly IHost _host;
         private readonly IUpdateManager _updateManager;
         private readonly IStartupManager _startupManager;
+        private readonly IConfigurationService _configService;
         private readonly CancellationTokenSource _cts;
         private readonly ToolStripMenuItem _statusMenuItem;
         private readonly ToolStripMenuItem _keyboardMenuItem;
@@ -24,12 +25,18 @@ namespace KeyboardAutoSwitcher.UI
         private readonly Icon _azertyIcon;
         private readonly Icon _defaultIcon;
         private LogViewerForm? _logViewerForm;
+        private ConfigurationForm? _configForm;
 
-        public TrayApplicationContext(IHost host, IUpdateManager updateManager, IStartupManager startupManager)
+        public TrayApplicationContext(
+            IHost host,
+            IUpdateManager updateManager,
+            IStartupManager startupManager,
+            IConfigurationService configService)
         {
             _host = host;
             _updateManager = updateManager;
             _startupManager = startupManager;
+            _configService = configService;
             _cts = new CancellationTokenSource();
 
             // Generate icons
@@ -64,6 +71,7 @@ namespace KeyboardAutoSwitcher.UI
             _ = contextMenu.Items.Add(_statusMenuItem);
             _ = contextMenu.Items.Add(_keyboardMenuItem);
             _ = contextMenu.Items.Add(new ToolStripSeparator());
+            _ = contextMenu.Items.Add("⚙️ Configuration...", null, OnShowConfiguration);
             _ = contextMenu.Items.Add(_startupMenuItem);
             _ = contextMenu.Items.Add(_updateMenuItem);
             _ = contextMenu.Items.Add(new ToolStripSeparator());
@@ -219,9 +227,37 @@ namespace KeyboardAutoSwitcher.UI
                 return;
             }
 
-            _keyboardMenuItem.Text = e.IsConnected
-                ? "Clavier: TypeMatrix connecté ✓"
-                : "Clavier: TypeMatrix non détecté";
+            _keyboardMenuItem.Text = e.IsConnected && !string.IsNullOrEmpty(e.DeviceName) ? $"Clavier: {e.DeviceName} ✓" : "Clavier: Aucun périphérique configuré";
+        }
+
+        private void OnShowConfiguration(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (_configForm == null || _configForm.IsDisposed)
+                {
+                    _configForm = new ConfigurationForm(_configService);
+                }
+
+                if (_configForm.Visible)
+                {
+                    _configForm.BringToFront();
+                    _configForm.Activate();
+                }
+                else
+                {
+                    _ = _configForm.ShowDialog();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to open configuration form");
+                _ = MessageBox.Show(
+                    $"Erreur lors de l'ouverture de la configuration: {ex.Message}",
+                    "Keyboard Auto Switcher",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         private void UpdateIcon(string layoutName)
@@ -339,9 +375,11 @@ namespace KeyboardAutoSwitcher.UI
             // Hide icon immediately
             _notifyIcon.Visible = false;
 
-            // Close log viewer if open
+            // Close forms if open
             _logViewerForm?.Close();
             _logViewerForm?.Dispose();
+            _configForm?.Close();
+            _configForm?.Dispose();
 
             try
             {
@@ -368,6 +406,7 @@ namespace KeyboardAutoSwitcher.UI
             if (disposing)
             {
                 _logViewerForm?.Dispose();
+                _configForm?.Dispose();
                 _notifyIcon?.Dispose();
                 _dvorakIcon?.Dispose();
                 _azertyIcon?.Dispose();
@@ -390,8 +429,9 @@ namespace KeyboardAutoSwitcher.UI
     /// <summary>
     /// Event arguments for keyboard status notifications
     /// </summary>
-    public class KeyboardStatusEventArgs(bool isConnected) : EventArgs
+    public class KeyboardStatusEventArgs(bool isConnected, string? deviceName = null) : EventArgs
     {
         public bool IsConnected { get; } = isConnected;
+        public string? DeviceName { get; } = deviceName;
     }
 }

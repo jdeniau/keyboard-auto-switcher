@@ -1,3 +1,4 @@
+using KeyboardAutoSwitcher.Models;
 using KeyboardAutoSwitcher.Services;
 using KeyboardAutoSwitcher.UI;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ namespace KeyboardAutoSwitcher.Tests.Services
         private class TestUSBDeviceDetector : IUSBDeviceDetector
         {
             private bool _isConnected;
+            private UsbDeviceMapping? _connectedDevice;
             public bool MonitoringStarted { get; private set; }
             public bool MonitoringStopped { get; private set; }
 
@@ -28,6 +30,15 @@ namespace KeyboardAutoSwitcher.Tests.Services
                 return _isConnected;
             }
 
+            public UsbDeviceMapping? GetConnectedDevice(IEnumerable<UsbDeviceMapping> deviceMappings)
+            {
+                return _connectedDevice;
+            }
+
+            public bool IsAnyConfiguredDeviceConnected(IEnumerable<UsbDeviceMapping> deviceMappings)
+            {
+                return _connectedDevice != null;
+            }
 
             public void StartMonitoring()
             {
@@ -39,21 +50,44 @@ namespace KeyboardAutoSwitcher.Tests.Services
                 MonitoringStopped = true;
             }
 
-            public void SimulateConnect()
+            public void SimulateConnect(UsbDeviceMapping? device = null)
             {
                 _isConnected = true;
+                _connectedDevice = device;
                 DeviceChanged?.Invoke(this, new USBDeviceEventArgs(true));
             }
 
             public void SimulateDisconnect()
             {
                 _isConnected = false;
+                _connectedDevice = null;
                 DeviceChanged?.Invoke(this, new USBDeviceEventArgs(false));
             }
 
-            public void SetInitialState(bool isConnected)
+            public void SetInitialState(bool isConnected, UsbDeviceMapping? device = null)
             {
                 _isConnected = isConnected;
+                _connectedDevice = device;
+            }
+        }
+
+        /// <summary>
+        /// Mock implementation of IConfigurationService for testing
+        /// </summary>
+        private class TestConfigurationService : IConfigurationService
+        {
+            public AppConfiguration Configuration { get; private set; } = AppConfiguration.CreateDefault();
+
+            public event EventHandler<ConfigurationChangedEventArgs>? ConfigurationChanged;
+
+            public void Load() { }
+
+            public void Save() { }
+
+            public void Save(AppConfiguration configuration)
+            {
+                Configuration = configuration;
+                ConfigurationChanged?.Invoke(this, new ConfigurationChangedEventArgs(configuration));
             }
         }
 
@@ -63,9 +97,11 @@ namespace KeyboardAutoSwitcher.Tests.Services
             // Arrange
             Mock<ILogger<KeyboardSwitcherWorker>> loggerMock = new();
             Mock<IUSBDeviceDetector> detectorMock = new();
+            Mock<IConfigurationService> configMock = new();
+            _ = configMock.Setup(c => c.Configuration).Returns(AppConfiguration.CreateDefault());
 
             // Act & Assert
-            KeyboardSwitcherWorker worker = new(loggerMock.Object, detectorMock.Object);
+            KeyboardSwitcherWorker worker = new(loggerMock.Object, detectorMock.Object, configMock.Object);
             _ = worker.ShouldNotBeNull();
         }
 
@@ -74,9 +110,11 @@ namespace KeyboardAutoSwitcher.Tests.Services
         {
             // Arrange
             Mock<IUSBDeviceDetector> detectorMock = new();
+            Mock<IConfigurationService> configMock = new();
+            _ = configMock.Setup(c => c.Configuration).Returns(AppConfiguration.CreateDefault());
 
             // Act - Constructor allows null (no validation in constructor)
-            KeyboardSwitcherWorker worker = new(null!, detectorMock.Object);
+            KeyboardSwitcherWorker worker = new(null!, detectorMock.Object, configMock.Object);
 
             // Assert
             _ = worker.ShouldNotBeNull();
@@ -87,9 +125,11 @@ namespace KeyboardAutoSwitcher.Tests.Services
         {
             // Arrange
             Mock<ILogger<KeyboardSwitcherWorker>> loggerMock = new();
+            Mock<IConfigurationService> configMock = new();
+            _ = configMock.Setup(c => c.Configuration).Returns(AppConfiguration.CreateDefault());
 
             // Act - Constructor allows null (no validation in constructor)
-            KeyboardSwitcherWorker worker = new(loggerMock.Object, null!);
+            KeyboardSwitcherWorker worker = new(loggerMock.Object, null!, configMock.Object);
 
             // Assert
             _ = worker.ShouldNotBeNull();

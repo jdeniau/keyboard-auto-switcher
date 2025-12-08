@@ -5,7 +5,7 @@ namespace KeyboardAutoSwitcher.UI
     /// <summary>
     /// Form that displays logs with syntax highlighting
     /// </summary>
-    public partial class LogViewerForm : Form
+    public partial class LogViewerForm : ThemedForm
     {
         private readonly RichTextBox _logTextBox;
         private readonly System.Windows.Forms.Timer _refreshTimer;
@@ -14,7 +14,6 @@ namespace KeyboardAutoSwitcher.UI
         private long _lastFilePosition;
         private FileSystemWatcher? _fileWatcher;
         private readonly ToolStrip? _toolStrip;
-        private ThemeColors _theme;
 
         public LogViewerForm()
         {
@@ -23,8 +22,6 @@ namespace KeyboardAutoSwitcher.UI
                 "KeyboardAutoSwitcher",
                 "logs");
 
-            _theme = ThemeHelper.GetThemeColors();
-
             InitializeComponent();
 
             // Create log text box
@@ -32,8 +29,8 @@ namespace KeyboardAutoSwitcher.UI
             {
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
-                BackColor = _theme.Background,
-                ForeColor = _theme.TextPrimary,
+                BackColor = Theme.Background,
+                ForeColor = Theme.TextPrimary,
                 Font = new Font("Cascadia Code", 10F, FontStyle.Regular, GraphicsUnit.Point)
                        ?? new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point),
                 BorderStyle = BorderStyle.None,
@@ -63,53 +60,39 @@ namespace KeyboardAutoSwitcher.UI
 
             // Start auto-refresh
             _refreshTimer.Start();
-
-            // Subscribe to theme changes
-            ThemeHelper.StartMonitoring();
-            ThemeHelper.ThemeChanged += OnThemeChanged;
         }
 
-        private void OnThemeChanged(object? sender, EventArgs e)
+        protected override void OnThemeChanged()
         {
-            if (InvokeRequired)
-            {
-                Invoke(new Action(() => OnThemeChanged(sender, e)));
-                return;
-            }
-
-            ApplyTheme();
+            base.OnThemeChanged();
+            ApplyLogViewerTheme();
         }
 
-        private void ApplyTheme()
+        private void ApplyLogViewerTheme()
         {
-            _theme = ThemeHelper.GetThemeColors();
-
-            // Update form
-            BackColor = _theme.Background;
-
             // Update text box
-            _logTextBox.BackColor = _theme.Background;
-            _logTextBox.ForeColor = _theme.TextPrimary;
+            _logTextBox.BackColor = Theme.Background;
+            _logTextBox.ForeColor = Theme.TextPrimary;
 
             // Update toolbar
             if (_toolStrip != null)
             {
-                _toolStrip.BackColor = _theme.BackgroundToolbar;
-                _toolStrip.Renderer = new ThemedToolStripRenderer(_theme);
+                _toolStrip.BackColor = Theme.BackgroundToolbar;
+                _toolStrip.Renderer = new ThemedToolStripRenderer(Theme);
 
                 foreach (ToolStripItem item in _toolStrip.Items)
                 {
                     if (item is ToolStripLabel label)
                     {
                         label.ForeColor = item.Tag?.ToString() == "filelabel"
-                            ? _theme.TextSecondary
-                            : _theme.TextPrimary;
+                            ? Theme.TextSecondary
+                            : Theme.TextPrimary;
                     }
                     else if (item is ToolStripButton button)
                     {
                         button.ForeColor = button.Tag?.ToString() == "autoscroll"
-                            ? button.Checked ? _theme.HighlightConnected : _theme.TextSecondary
-                            : _theme.TextPrimary;
+                            ? button.Checked ? Theme.HighlightConnected : Theme.TextSecondary
+                            : Theme.TextPrimary;
                     }
                 }
             }
@@ -126,7 +109,7 @@ namespace KeyboardAutoSwitcher.UI
             Size = new Size(900, 600);
             MinimumSize = new Size(600, 400);
             StartPosition = FormStartPosition.CenterScreen;
-            BackColor = _theme.Background;
+            BackColor = Theme.Background;
 
             // Set icon
             try
@@ -140,57 +123,57 @@ namespace KeyboardAutoSwitcher.UI
         {
             ToolStrip toolStrip = new()
             {
-                BackColor = _theme.BackgroundToolbar,
-                ForeColor = _theme.TextPrimary,
+                BackColor = Theme.BackgroundToolbar,
+                ForeColor = Theme.TextPrimary,
                 GripStyle = ToolStripGripStyle.Hidden,
-                Renderer = new ThemedToolStripRenderer(_theme)
+                Renderer = new ThemedToolStripRenderer(Theme)
             };
 
             // Refresh button
             ToolStripButton refreshButton = new("🔄 Actualiser")
             {
-                ForeColor = _theme.TextPrimary
+                ForeColor = Theme.TextPrimary
             };
             refreshButton.Click += (s, e) => LoadLatestLogFile();
 
             // Clear button
             ToolStripButton clearButton = new("🗑️ Effacer l'affichage")
             {
-                ForeColor = _theme.TextPrimary
+                ForeColor = Theme.TextPrimary
             };
             clearButton.Click += (s, e) => _logTextBox.Clear();
 
             // Open folder button
             ToolStripButton openFolderButton = new("📁 Ouvrir le dossier")
             {
-                ForeColor = _theme.TextPrimary
+                ForeColor = Theme.TextPrimary
             };
             openFolderButton.Click += OnOpenFolder;
 
             // Auto-scroll checkbox
             ToolStripLabel autoScrollLabel = new("Auto-scroll:")
             {
-                ForeColor = _theme.TextPrimary
+                ForeColor = Theme.TextPrimary
             };
             ToolStripButton autoScrollCheckbox = new("✓")
             {
                 Checked = true,
                 CheckOnClick = true,
-                ForeColor = _theme.HighlightConnected,
+                ForeColor = Theme.HighlightConnected,
                 Tag = "autoscroll"
             };
             autoScrollCheckbox.Click += (s, e) =>
             {
                 autoScrollCheckbox.ForeColor = autoScrollCheckbox.Checked
-                    ? _theme.HighlightConnected
-                    : _theme.TextSecondary;
+                    ? Theme.HighlightConnected
+                    : Theme.TextSecondary;
                 autoScrollCheckbox.Text = autoScrollCheckbox.Checked ? "✓" : "✗";
             };
 
             // Current file label
             ToolStripLabel fileLabel = new()
             {
-                ForeColor = _theme.TextSecondary,
+                ForeColor = Theme.TextSecondary,
                 Alignment = ToolStripItemAlignment.Right,
                 Tag = "filelabel"
             };
@@ -239,7 +222,7 @@ namespace KeyboardAutoSwitcher.UI
             {
                 if (!Directory.Exists(_logDirectory))
                 {
-                    AppendColoredText("En attente des premiers logs...\n", _theme.LogInfo);
+                    AppendColoredText("En attente des premiers logs...\n", Theme.LogInfo);
                     return;
                 }
 
@@ -247,7 +230,7 @@ namespace KeyboardAutoSwitcher.UI
 
                 if (logFiles.Length == 0)
                 {
-                    AppendColoredText("Aucun fichier de log trouvé.\n", _theme.LogWarning);
+                    AppendColoredText("Aucun fichier de log trouvé.\n", Theme.LogWarning);
                     return;
                 }
 
@@ -262,7 +245,7 @@ namespace KeyboardAutoSwitcher.UI
             }
             catch (Exception ex)
             {
-                AppendColoredText($"Erreur lors du chargement des logs: {ex.Message}\n", _theme.LogError);
+                AppendColoredText($"Erreur lors du chargement des logs: {ex.Message}\n", Theme.LogError);
             }
         }
 
@@ -308,7 +291,7 @@ namespace KeyboardAutoSwitcher.UI
             }
             catch (Exception ex)
             {
-                AppendColoredText($"Erreur de lecture: {ex.Message}\n", _theme.LogError);
+                AppendColoredText($"Erreur de lecture: {ex.Message}\n", Theme.LogError);
             }
         }
 
@@ -340,17 +323,17 @@ namespace KeyboardAutoSwitcher.UI
                 string message = match.Groups[3].Value;
 
                 // Append timestamp
-                AppendColoredText(timestamp + " ", _theme.LogTimestamp);
+                AppendColoredText(timestamp + " ", Theme.LogTimestamp);
 
                 // Append level with appropriate color
                 (Color levelColor, string? levelText) = level.ToUpperInvariant() switch
                 {
-                    "DBG" => (_theme.LogDebug, "[DBG]"),
-                    "INF" => (_theme.LogInfo, "[INF]"),
-                    "WRN" => (_theme.LogWarning, "[WRN]"),
-                    "ERR" => (_theme.LogError, "[ERR]"),
-                    "FTL" => (_theme.LogFatal, "[FTL]"),
-                    _ => (_theme.TextPrimary, $"[{level}]")
+                    "DBG" => (Theme.LogDebug, "[DBG]"),
+                    "INF" => (Theme.LogInfo, "[INF]"),
+                    "WRN" => (Theme.LogWarning, "[WRN]"),
+                    "ERR" => (Theme.LogError, "[ERR]"),
+                    "FTL" => (Theme.LogFatal, "[FTL]"),
+                    _ => (Theme.TextPrimary, $"[{level}]")
                 };
 
                 AppendColoredText(levelText + " ", levelColor);
@@ -362,7 +345,7 @@ namespace KeyboardAutoSwitcher.UI
             else
             {
                 // Non-matching line (possibly continuation or stack trace)
-                AppendColoredText(line + "\n", _theme.TextPrimary);
+                AppendColoredText(line + "\n", Theme.TextPrimary);
             }
         }
 
@@ -371,11 +354,11 @@ namespace KeyboardAutoSwitcher.UI
             // Highlight specific patterns in the message
             (string, Color)[] patterns =
             [
-                (@"(Dvorak|AZERTY|French|TypeMatrix)", _theme.HighlightKeyboard),
-                (@"(0x[0-9A-Fa-f]+)", _theme.HighlightHex),
-                (@"(connected|connecté|détecté)", _theme.HighlightConnected),
-                (@"(disconnected|non détecté)", _theme.HighlightDisconnected),
-                (@"(Switching|Activating|changée)", _theme.HighlightAction),
+                (@"(Dvorak|AZERTY|French|TypeMatrix)", Theme.HighlightKeyboard),
+                (@"(0x[0-9A-Fa-f]+)", Theme.HighlightHex),
+                (@"(connected|connecté|détecté)", Theme.HighlightConnected),
+                (@"(disconnected|non détecté)", Theme.HighlightDisconnected),
+                (@"(Switching|Activating|changée)", Theme.HighlightAction),
             ];
 
             int lastIndex = 0;
@@ -397,7 +380,7 @@ namespace KeyboardAutoSwitcher.UI
                 if (match.Start > lastIndex)
                 {
                     // Append text before match
-                    AppendColoredText(message[lastIndex..match.Start], _theme.TextPrimary);
+                    AppendColoredText(message[lastIndex..match.Start], Theme.TextPrimary);
                 }
 
                 if (match.Start >= lastIndex)
@@ -411,7 +394,7 @@ namespace KeyboardAutoSwitcher.UI
             // Append remaining text
             if (lastIndex < message.Length)
             {
-                AppendColoredText(message[lastIndex..], _theme.TextPrimary);
+                AppendColoredText(message[lastIndex..], Theme.TextPrimary);
             }
         }
 
@@ -421,7 +404,7 @@ namespace KeyboardAutoSwitcher.UI
             _logTextBox.SelectionLength = 0;
             _logTextBox.SelectionColor = color;
             _logTextBox.AppendText(text);
-            _logTextBox.SelectionColor = _theme.TextPrimary;
+            _logTextBox.SelectionColor = Theme.TextPrimary;
         }
 
         private bool IsAutoScrollEnabled()
@@ -496,7 +479,6 @@ namespace KeyboardAutoSwitcher.UI
                 return;
             }
 
-            ThemeHelper.ThemeChanged -= OnThemeChanged;
             _refreshTimer.Stop();
             _refreshTimer.Dispose();
             _fileWatcher?.Dispose();
@@ -507,7 +489,6 @@ namespace KeyboardAutoSwitcher.UI
         {
             if (disposing)
             {
-                ThemeHelper.ThemeChanged -= OnThemeChanged;
                 _refreshTimer?.Dispose();
                 _fileWatcher?.Dispose();
                 _logTextBox?.Dispose();
@@ -532,21 +513,21 @@ namespace KeyboardAutoSwitcher.UI
     /// </summary>
     public class ThemedColorTable(ThemeColors theme) : ProfessionalColorTable
     {
-        private readonly ThemeColors _theme = theme;
+        private readonly ThemeColors Theme = theme;
 
-        public override Color ToolStripGradientBegin => _theme.BackgroundToolbar;
-        public override Color ToolStripGradientMiddle => _theme.BackgroundToolbar;
-        public override Color ToolStripGradientEnd => _theme.BackgroundToolbar;
-        public override Color MenuItemSelected => _theme.ButtonHover;
-        public override Color MenuItemSelectedGradientBegin => _theme.ButtonHover;
-        public override Color MenuItemSelectedGradientEnd => _theme.ButtonHover;
-        public override Color MenuItemBorder => _theme.Border;
-        public override Color ButtonSelectedHighlight => _theme.ButtonHover;
-        public override Color ButtonSelectedGradientBegin => _theme.ButtonHover;
-        public override Color ButtonSelectedGradientEnd => _theme.ButtonHover;
-        public override Color ButtonPressedGradientBegin => _theme.ButtonPressed;
-        public override Color ButtonPressedGradientEnd => _theme.ButtonPressed;
-        public override Color SeparatorDark => _theme.Separator;
-        public override Color SeparatorLight => _theme.Separator;
+        public override Color ToolStripGradientBegin => Theme.BackgroundToolbar;
+        public override Color ToolStripGradientMiddle => Theme.BackgroundToolbar;
+        public override Color ToolStripGradientEnd => Theme.BackgroundToolbar;
+        public override Color MenuItemSelected => Theme.ButtonHover;
+        public override Color MenuItemSelectedGradientBegin => Theme.ButtonHover;
+        public override Color MenuItemSelectedGradientEnd => Theme.ButtonHover;
+        public override Color MenuItemBorder => Theme.Border;
+        public override Color ButtonSelectedHighlight => Theme.ButtonHover;
+        public override Color ButtonSelectedGradientBegin => Theme.ButtonHover;
+        public override Color ButtonSelectedGradientEnd => Theme.ButtonHover;
+        public override Color ButtonPressedGradientBegin => Theme.ButtonPressed;
+        public override Color ButtonPressedGradientEnd => Theme.ButtonPressed;
+        public override Color SeparatorDark => Theme.Separator;
+        public override Color SeparatorLight => Theme.Separator;
     }
 }
