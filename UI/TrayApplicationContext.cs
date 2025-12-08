@@ -198,13 +198,16 @@ namespace KeyboardAutoSwitcher.UI
             _statusMenuItem.Text = $"Layout: {e.LayoutName}";
 
             // Show balloon notification on change (only if not initial)
+            // Note: Windows 10/11 uses the NotifyIcon's Icon in toast notifications,
+            // so the Dvorak/AZERTY icon will appear automatically
             if (!e.IsInitial)
             {
                 _notifyIcon.ShowBalloonTip(
                     2000,
                     "Keyboard Auto Switcher",
                     $"Disposition changée: {e.LayoutName}",
-                    ToolTipIcon.Info);
+                    ToolTipIcon.None
+                );
             }
         }
 
