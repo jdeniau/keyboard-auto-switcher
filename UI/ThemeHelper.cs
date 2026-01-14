@@ -122,6 +122,10 @@ namespace KeyboardAutoSwitcher.UI
         public Color Border { get; init; }
         public Color ButtonHover { get; init; }
         public Color ButtonPressed { get; init; }
+        public Color ButtonPrimaryBackground { get; init; }
+        public Color ButtonPrimaryText { get; init; }
+        public Color ButtonDisabledBackground { get; init; }
+        public Color ButtonDisabledText { get; init; }
         public Color Separator { get; init; }
 
         /// <summary>
@@ -157,6 +161,10 @@ namespace KeyboardAutoSwitcher.UI
             Border = Color.FromArgb(60, 60, 60),
             ButtonHover = Color.FromArgb(60, 60, 60),
             ButtonPressed = Color.FromArgb(70, 70, 70),
+            ButtonPrimaryBackground = Color.FromArgb(46, 125, 50),  // Darker green for better contrast
+            ButtonPrimaryText = Color.White,
+            ButtonDisabledBackground = Color.FromArgb(55, 55, 55),
+            ButtonDisabledText = Color.FromArgb(100, 100, 100),
             Separator = Color.FromArgb(60, 60, 60)
         };
 
@@ -193,6 +201,10 @@ namespace KeyboardAutoSwitcher.UI
             Border = Color.FromArgb(200, 200, 200),
             ButtonHover = Color.FromArgb(225, 225, 225),
             ButtonPressed = Color.FromArgb(210, 210, 210),
+            ButtonPrimaryBackground = Color.FromArgb(46, 125, 50),  // Same green as dark theme
+            ButtonPrimaryText = Color.White,
+            ButtonDisabledBackground = Color.FromArgb(230, 230, 230),
+            ButtonDisabledText = Color.FromArgb(160, 160, 160),
             Separator = Color.FromArgb(200, 200, 200)
         };
     }

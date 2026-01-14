@@ -1,3 +1,4 @@
+using KeyboardAutoSwitcher.Models;
 using KeyboardAutoSwitcher.UI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -9,10 +10,11 @@ namespace KeyboardAutoSwitcher.Services
     /// Background worker that monitors keyboard connection and switches layouts automatically
     /// Uses event-based USB monitoring and power events instead of polling for better performance
     /// </summary>
-    public class KeyboardSwitcherWorker(ILogger<KeyboardSwitcherWorker> logger, IUSBDeviceDetector usbDetector) : BackgroundService
+    public class KeyboardSwitcherWorker : BackgroundService
     {
-        private readonly ILogger<KeyboardSwitcherWorker> _logger = logger;
-        private readonly IUSBDeviceDetector _usbDetector = usbDetector;
+        private readonly ILogger<KeyboardSwitcherWorker> _logger;
+        private readonly IUSBDeviceDetector _usbDetector;
+        private readonly IConfigurationService _configService;
         private bool _isFirstCheck = true;
 
         /// <summary>
@@ -24,6 +26,25 @@ namespace KeyboardAutoSwitcher.Services
         /// Event raised when the external keyboard connection status changes
         /// </summary>
         public static event EventHandler<KeyboardStatusEventArgs>? KeyboardStatusChanged;
+
+        public KeyboardSwitcherWorker(
+            ILogger<KeyboardSwitcherWorker> logger,
+            IUSBDeviceDetector usbDetector,
+            IConfigurationService configService)
+        {
+            _logger = logger;
+            _usbDetector = usbDetector;
+            _configService = configService;
+
+            // Subscribe to configuration changes
+            _configService.ConfigurationChanged += OnConfigurationChanged;
+        }
+
+        private void OnConfigurationChanged(object? sender, ConfigurationChangedEventArgs e)
+        {
+            _logger.LogInformation("Configuration changed, rechecking layout");
+            CheckAndSwitchLayout();
+        }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -140,44 +161,63 @@ namespace KeyboardAutoSwitcher.Services
         {
             try
             {
-                KeyboardLayoutConfig? currentLayout = KeyboardLayout.GetCurrentLayout();
+                AppConfiguration config = _configService.Configuration;
                 int currentLayoutId = KeyboardLayout.GetCurrentLayoutId();
-                bool isExternalKeyboardConnected = _usbDetector.IsTargetKeyboardConnected();
+
+                // Check which configured device is connected (if any)
+                UsbDeviceMapping? connectedDevice = _usbDetector.GetConnectedDevice(config.DeviceMappings);
+                bool isExternalKeyboardConnected = connectedDevice != null;
 
                 // Notify UI about keyboard status
-                KeyboardStatusChanged?.Invoke(this, new KeyboardStatusEventArgs(isExternalKeyboardConnected));
+                KeyboardStatusChanged?.Invoke(this, new KeyboardStatusEventArgs(
+                    isExternalKeyboardConnected,
+                    connectedDevice?.DeviceName));
 
-                KeyboardLayoutConfig targetLayout = isExternalKeyboardConnected
-                    ? KeyboardLayouts.UsDvorak
-                    : KeyboardLayouts.FrenchStandard;
+                // Determine target layout
+                int targetLayoutId;
+                string targetLayoutDisplayName;
 
-                _logger.LogInformation(isExternalKeyboardConnected
-                    ? "External keyboard detected"
-                    : "No external keyboard");
-
-                _logger.LogInformation("Current layout: 0x{LayoutId:X8} => {Layout}", currentLayoutId,
-                    currentLayout != null ? currentLayout.DisplayName : $"Unknown (lang: {currentLayoutId & 0xFFFF:X4})");
-
-                if (currentLayout == null || currentLayout.LayoutId != targetLayout.LayoutId)
+                if (connectedDevice != null)
                 {
-                    _logger.LogInformation("Switching to {Layout}...", targetLayout.DisplayName);
-                    SetKeyboardLayout(targetLayout);
+                    targetLayoutId = connectedDevice.LayoutId;
+                    targetLayoutDisplayName = connectedDevice.LayoutDisplayName;
+                    _logger.LogInformation("External keyboard detected: {DeviceName}", connectedDevice.DeviceName);
+                }
+                else
+                {
+                    targetLayoutId = config.DefaultLayoutId;
+                    targetLayoutDisplayName = config.DefaultLayoutDisplayName;
+                    _logger.LogInformation("No configured external keyboard detected");
+                }
+
+                string currentLayoutDisplay = KeyboardLayout.GetDisplayNameForLayoutId(currentLayoutId);
+                _logger.LogInformation("Current layout: 0x{LayoutId:X8} => {Layout}", currentLayoutId, currentLayoutDisplay);
+
+                // Check if we need to switch (compare by exact ID or language ID)
+                bool needsSwitch = currentLayoutId != targetLayoutId &&
+                                   (currentLayoutId & 0xFFFF) != (targetLayoutId & 0xFFFF);
+
+                if (needsSwitch)
+                {
+                    _logger.LogInformation("Switching to {Layout}...", targetLayoutDisplayName);
+                    KeyboardLayout.ActivateLayoutById(targetLayoutId);
+                    _logger.LogInformation("Switched to: {Layout}", targetLayoutDisplayName);
 
                     // Notify UI about layout change
                     LayoutChanged?.Invoke(this, new LayoutChangedEventArgs(
-                        targetLayout.DisplayName,
+                        targetLayoutDisplayName,
                         isExternalKeyboardConnected,
                         _isFirstCheck));
                 }
                 else
                 {
-                    _logger.LogDebug("Already using {Layout}", currentLayout.DisplayName);
+                    _logger.LogDebug("Already using correct layout");
 
                     // Still notify UI on first check
                     if (_isFirstCheck)
                     {
                         LayoutChanged?.Invoke(this, new LayoutChangedEventArgs(
-                            currentLayout.DisplayName,
+                            currentLayoutDisplay,
                             isExternalKeyboardConnected,
                             true));
                     }
@@ -211,36 +251,6 @@ namespace KeyboardAutoSwitcher.Services
                 {
                     break;
                 }
-            }
-        }
-
-        private void SetKeyboardLayout(KeyboardLayoutConfig targetLayoutConfig)
-        {
-            _logger.LogDebug("Looking for layout: {Layout} (0x{LayoutId:X8})", targetLayoutConfig.DisplayName, targetLayoutConfig.LayoutId);
-
-            if (_logger.IsEnabled(LogLevel.Debug))
-            {
-                nint[]? cachedLayouts = KeyboardLayout.GetCachedLayoutHandles();
-                if (cachedLayouts != null)
-                {
-                    foreach (IntPtr hkl in cachedLayouts)
-                    {
-                        KeyboardLayoutConfig? knownLayout = KeyboardLayouts.GetByLayoutId((int)hkl);
-                        string layoutName = knownLayout != null ? knownLayout.DisplayName : "Unknown";
-                        _logger.LogDebug("  0x{HKL:X8} - {LayoutName}", (int)hkl, layoutName);
-                    }
-                }
-            }
-
-            try
-            {
-                _logger.LogInformation("Activating layout: 0x{LayoutId:X8}", targetLayoutConfig.LayoutId);
-                KeyboardLayout.ActivateLayout(targetLayoutConfig);
-                _logger.LogInformation("Switched to: {Layout}", targetLayoutConfig.DisplayName);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex.Message);
             }
         }
     }
