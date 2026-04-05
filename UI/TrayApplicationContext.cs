@@ -37,7 +37,12 @@ namespace KeyboardAutoSwitcher.UI
             // This is more reliable than using ContextMenuStrip.InvokeRequired/BeginInvoke,
             // which can deadlock if the control handle hasn't been created yet or if
             // the UI thread is blocked (e.g. during session unlock).
-            _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
+            // SynchronizationContext.Current is guaranteed to be set in a WinForms app
+            // after Application.Run() initializes the message loop on the STA thread.
+            _syncContext = SynchronizationContext.Current
+                ?? throw new InvalidOperationException(
+                    "SynchronizationContext.Current is null. " +
+                    "TrayApplicationContext must be created on the UI thread after Application initialization.");
 
             // Generate icons
             _dvorakIcon = IconGenerator.CreateDvorakIcon();

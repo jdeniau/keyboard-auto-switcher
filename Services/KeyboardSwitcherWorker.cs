@@ -14,6 +14,7 @@ namespace KeyboardAutoSwitcher.Services
         private readonly ILogger<KeyboardSwitcherWorker> _logger = logger;
         private readonly IUSBDeviceDetector _usbDetector = usbDetector;
         private bool _isFirstCheck = true;
+        private CancellationToken _stoppingToken;
 
         /// <summary>
         /// Event raised when the keyboard layout changes
@@ -27,6 +28,7 @@ namespace KeyboardAutoSwitcher.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _stoppingToken = stoppingToken;
             _logger.LogInformation("Keyboard Auto Switcher worker starting (event-based monitoring)");
 
             // Initialize layout cache
@@ -133,8 +135,12 @@ namespace KeyboardAutoSwitcher.Services
         {
             try
             {
-                await Task.Delay(delayMs);
+                await Task.Delay(delayMs, _stoppingToken);
                 CheckAndSwitchLayout();
+            }
+            catch (OperationCanceledException)
+            {
+                // Graceful shutdown during delay - expected when application is exiting
             }
             catch (Exception ex)
             {
