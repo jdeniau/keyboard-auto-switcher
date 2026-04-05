@@ -178,7 +178,16 @@ namespace KeyboardAutoSwitcher.UI
                     _ = await _updateManager.DownloadAndApplyUpdateAsync(updateInfo, progress =>
                     {
                         _syncContext.Post(_ =>
-                            _updateMenuItem.Text = $"⏳ Téléchargement: {progress}%", null);
+                        {
+                            try
+                            {
+                                _updateMenuItem.Text = $"⏳ Téléchargement: {progress}%";
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warning(ex, "Failed to update download progress");
+                            }
+                        }, null);
                     });
                 }
             }
