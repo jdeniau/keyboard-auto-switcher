@@ -1,4 +1,5 @@
 using System.Management; // need to add System.Management to your project references.
+using Serilog;
 
 namespace KeyboardAutoSwitcher
 {
@@ -27,14 +28,21 @@ namespace KeyboardAutoSwitcher
                 {
                     return task.Result;
                 }
+                Log.Warning("USB keyboard detection timed out, retrying...");
                 // Timeout: retry once after a short delay
                 Task.Delay(500).Wait();
                 task = Task.Run(QueryKeyboardConnection);
 
-                return task.Wait(TimeSpan.FromSeconds(5)) && task.Result;
+                if (task.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    return task.Result;
+                }
+                Log.Warning("USB keyboard detection timed out on retry");
+                return false;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Error(ex, "Error detecting USB keyboard connection");
                 return false;
             }
         }
