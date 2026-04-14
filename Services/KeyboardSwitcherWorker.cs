@@ -14,6 +14,7 @@ namespace KeyboardAutoSwitcher.Services
         private readonly ILogger<KeyboardSwitcherWorker> _logger = logger;
         private readonly IUSBDeviceDetector _usbDetector = usbDetector;
         private bool _isFirstCheck = true;
+        private CancellationToken _stoppingToken;
 
         /// <summary>
         /// Event raised when the keyboard layout changes
@@ -27,6 +28,7 @@ namespace KeyboardAutoSwitcher.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _stoppingToken = stoppingToken;
             _logger.LogInformation("Keyboard Auto Switcher worker starting (event-based monitoring)");
 
             // Initialize layout cache
@@ -84,7 +86,7 @@ namespace KeyboardAutoSwitcher.Services
             {
                 _logger.LogInformation("System resumed from sleep/hibernation");
                 // Small delay to let USB devices re-enumerate
-                _ = Task.Delay(2000).ContinueWith(_ => CheckAndSwitchLayout());
+                _ = DelayedCheckAndSwitchLayoutAsync(2000);
             }
         }
 
@@ -95,18 +97,18 @@ namespace KeyboardAutoSwitcher.Services
                 case SessionSwitchReason.SessionUnlock:
                     _logger.LogInformation("Session unlocked");
                     // Small delay to ensure session is fully restored
-                    _ = Task.Delay(500).ContinueWith(_ => CheckAndSwitchLayout());
+                    _ = DelayedCheckAndSwitchLayoutAsync(500);
                     break;
                 case SessionSwitchReason.SessionLock:
                     _logger.LogDebug("Session locked");
                     break;
                 case SessionSwitchReason.RemoteConnect:
                     _logger.LogInformation("Remote session connected");
-                    _ = Task.Delay(500).ContinueWith(_ => CheckAndSwitchLayout());
+                    _ = DelayedCheckAndSwitchLayoutAsync(500);
                     break;
                 case SessionSwitchReason.ConsoleConnect:
                     _logger.LogInformation("Console session connected");
-                    _ = Task.Delay(500).ContinueWith(_ => CheckAndSwitchLayout());
+                    _ = DelayedCheckAndSwitchLayoutAsync(500);
                     break;
                 case SessionSwitchReason.ConsoleDisconnect:
                     break;
@@ -120,6 +122,29 @@ namespace KeyboardAutoSwitcher.Services
                     break;
                 default:
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Delays then checks and switches layout, with proper exception handling.
+        /// Uses async/await instead of ContinueWith to avoid running the continuation
+        /// on a ThreadPool thread, which caused cross-thread UI access and deadlocks
+        /// when system events (SessionSwitch, PowerModeChanged) fired on background threads.
+        /// </summary>
+        private async Task DelayedCheckAndSwitchLayoutAsync(int delayMs)
+        {
+            try
+            {
+                await Task.Delay(delayMs, _stoppingToken);
+                CheckAndSwitchLayout();
+            }
+            catch (OperationCanceledException)
+            {
+                // Graceful shutdown during delay - expected when application is exiting
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in delayed layout check");
             }
         }
 

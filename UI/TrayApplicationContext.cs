@@ -23,6 +23,7 @@ namespace KeyboardAutoSwitcher.UI
         private readonly Icon _dvorakIcon;
         private readonly Icon _azertyIcon;
         private readonly Icon _defaultIcon;
+        private readonly SynchronizationContext _syncContext;
         private LogViewerForm? _logViewerForm;
 
         public TrayApplicationContext(IHost host, IUpdateManager updateManager, IStartupManager startupManager)
@@ -31,6 +32,19 @@ namespace KeyboardAutoSwitcher.UI
             _updateManager = updateManager;
             _startupManager = startupManager;
             _cts = new CancellationTokenSource();
+
+            // Capture the UI thread's SynchronizationContext for safe cross-thread marshaling.
+            // This is more reliable than using ContextMenuStrip.InvokeRequired/BeginInvoke,
+            // which can deadlock if the control handle hasn't been created yet or if
+            // the UI thread is blocked (e.g. during session unlock).
+            // SynchronizationContext.Current may be null here because the constructor runs
+            // before Application.Run() starts the message loop. In that case, install a
+            // WindowsFormsSynchronizationContext ourselves since we're on the STA/UI thread.
+            if (SynchronizationContext.Current == null)
+            {
+                SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+            }
+            _syncContext = SynchronizationContext.Current!;
 
             // Generate icons
             _dvorakIcon = IconGenerator.CreateDvorakIcon();
@@ -120,14 +134,17 @@ namespace KeyboardAutoSwitcher.UI
 
                 if (available && newVersion != null)
                 {
-                    if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
+                    _syncContext.Post(_ =>
                     {
-                        _notifyIcon.ContextMenuStrip.Invoke(() => UpdateMenuForNewVersion(newVersion));
-                    }
-                    else
-                    {
-                        UpdateMenuForNewVersion(newVersion);
-                    }
+                        try
+                        {
+                            UpdateMenuForNewVersion(newVersion);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning(ex, "Failed to update menu for new version");
+                        }
+                    }, null);
                 }
             }
             catch (Exception ex)
@@ -162,15 +179,17 @@ namespace KeyboardAutoSwitcher.UI
                 {
                     _ = await _updateManager.DownloadAndApplyUpdateAsync(updateInfo, progress =>
                     {
-                        if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
+                        _syncContext.Post(_ =>
                         {
-                            _ = _notifyIcon.ContextMenuStrip.BeginInvoke(() =>
-                                _updateMenuItem.Text = $"⏳ Téléchargement: {progress}%");
-                        }
-                        else
-                        {
-                            _updateMenuItem.Text = $"⏳ Téléchargement: {progress}%";
-                        }
+                            try
+                            {
+                                _updateMenuItem.Text = $"⏳ Téléchargement: {progress}%";
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warning(ex, "Failed to update download progress");
+                            }
+                        }, null);
                     });
                 }
             }
@@ -188,40 +207,52 @@ namespace KeyboardAutoSwitcher.UI
 
         private void OnLayoutChanged(object? sender, LayoutChangedEventArgs e)
         {
-            if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
+            // Always marshal to UI thread via SynchronizationContext.
+            // This event can fire from background threads (system events, WMI events)
+            // and directly accessing NotifyIcon or menu items from a non-UI thread
+            // causes deadlocks that manifest as frozen tray menus after session unlock.
+            _syncContext.Post(_ =>
             {
-                _ = _notifyIcon.ContextMenuStrip.BeginInvoke(() => OnLayoutChanged(sender, e));
-                return;
-            }
+                try
+                {
+                    UpdateIcon(e.LayoutName);
+                    _statusMenuItem.Text = $"Layout: {e.LayoutName}";
 
-            UpdateIcon(e.LayoutName);
-            _statusMenuItem.Text = $"Layout: {e.LayoutName}";
-
-            // Show balloon notification on change (only if not initial)
-            // Note: Windows 10/11 uses the NotifyIcon's Icon in toast notifications,
-            // so the Dvorak/AZERTY icon will appear automatically
-            if (!e.IsInitial)
-            {
-                _notifyIcon.ShowBalloonTip(
-                    2000,
-                    "Keyboard Auto Switcher",
-                    $"Disposition changée: {e.LayoutName}",
-                    ToolTipIcon.None
-                );
-            }
+                    // Show balloon notification on change (only if not initial)
+                    // Note: Windows 10/11 uses the NotifyIcon's Icon in toast notifications,
+                    // so the Dvorak/AZERTY icon will appear automatically
+                    if (!e.IsInitial)
+                    {
+                        _notifyIcon.ShowBalloonTip(
+                            2000,
+                            "Keyboard Auto Switcher",
+                            $"Disposition changée: {e.LayoutName}",
+                            ToolTipIcon.None
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Error updating UI after layout change");
+                }
+            }, null);
         }
 
         private void OnKeyboardStatusChanged(object? sender, KeyboardStatusEventArgs e)
         {
-            if (_notifyIcon.ContextMenuStrip?.InvokeRequired == true)
+            _syncContext.Post(_ =>
             {
-                _ = _notifyIcon.ContextMenuStrip.BeginInvoke(() => OnKeyboardStatusChanged(sender, e));
-                return;
-            }
-
-            _keyboardMenuItem.Text = e.IsConnected
-                ? "Clavier: TypeMatrix connecté ✓"
-                : "Clavier: TypeMatrix non détecté";
+                try
+                {
+                    _keyboardMenuItem.Text = e.IsConnected
+                        ? "Clavier: TypeMatrix connecté ✓"
+                        : "Clavier: TypeMatrix non détecté";
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Error updating UI after keyboard status change");
+                }
+            }, null);
         }
 
         private void UpdateIcon(string layoutName)
