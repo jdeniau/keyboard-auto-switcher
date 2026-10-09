@@ -1,0 +1,14 @@
+{
+  "uuid": "keyboard-auto-switcher@jdeniau.github.io",
+  "name": "Keyboard Auto Switcher",
+  "description": "Switch to US Dvorak when a TypeMatrix keyboard is plugged in, back to French AZERTY otherwise.",
+  "shell-version": [
+    "50"
+  ],
+  "url": "https://github.com/jdeniau/keyboard-auto-switcher",
+  "version-name": "1.0.0",
+  "session-modes": [
+    "user",
+    "unlock-dialog"
+  ]
+}

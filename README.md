@@ -14,6 +14,11 @@ Switch automatically between azerty and dvorak if a TypeMatrix keyboard is conne
 - 🚀 Launch at Windows startup option
 - 🔄 Auto-updates via GitHub Releases
 
+## Linux (GNOME)
+
+A GNOME Shell extension with the same behaviour lives in [`linux/`](linux/README.md).
+Everything below this point is about the Windows application.
+
 ## Installation
 
 ### Option 1: Installer (recommended)
