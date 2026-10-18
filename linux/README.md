@@ -63,6 +63,9 @@ Everything is hardcoded at the top of `extension.js`, like in the Windows versio
 
 - `TARGET_KEYBOARD`: USB vendor/product ids (`lsusb` shows them as `1e54:2030`).
 - `LAYOUT_WITH_KEYBOARD` / `LAYOUT_WITHOUT_KEYBOARD`: xkb ids as listed by `gsettings`.
+- `COMPOSE_WITH_KEYBOARD` / `COMPOSE_WITHOUT_KEYBOARD`: the `compose:*` xkb option written to
+  `org.gnome.desktop.input-sources xkb-options` in each case (right Alt on the TypeMatrix,
+  right Ctrl on the laptop so that AltGr keeps working in AZERTY). Other xkb options are preserved.
 - `SETTLE_DELAY_MS`: debounce, since one plug/unplug emits several uevents.
 
 ## Debugging

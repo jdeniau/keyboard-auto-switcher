@@ -2,6 +2,7 @@
 // Keyboard Auto Switcher: switch to US Dvorak when a TypeMatrix keyboard
 // is plugged in, and back to French AZERTY when it is removed.
 
+import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import GUdev from "gi://GUdev";
 
@@ -16,11 +17,19 @@ const TARGET_KEYBOARD = {vendor: "1e54", product: "2030"};
 const LAYOUT_WITH_KEYBOARD = "us+dvorak";
 const LAYOUT_WITHOUT_KEYBOARD = "fr+azerty";
 
+// Compose key for each case. On the TypeMatrix (US Dvorak), right Alt is free, so it
+// becomes Compose. On the laptop (French AZERTY), right Alt must stay AltGr for ~ # { [ | @…,
+// so Compose goes on right Ctrl instead. (The Copilot key cannot be used: it sends a
+// Shift+Super+F23 chord that no xkb option can catch.) Other xkb options are left untouched.
+const COMPOSE_WITH_KEYBOARD = "compose:ralt";
+const COMPOSE_WITHOUT_KEYBOARD = "compose:rctrl";
+
 // A single plug/unplug emits several uevents (device, hub, interfaces): debounce them
 const SETTLE_DELAY_MS = 500;
 
 export default class KeyboardAutoSwitcher extends Extension {
     enable() {
+        this._inputSettings = new Gio.Settings({schema_id: "org.gnome.desktop.input-sources"});
         this._udev = new GUdev.Client({subsystems: ["usb/usb_device"]});
         this._ueventId = this._udev.connect("uevent", (_client, action, _device) => {
             if (action === "add" || action === "remove")
@@ -40,6 +49,15 @@ export default class KeyboardAutoSwitcher extends Extension {
         }
         this._udev.disconnect(this._ueventId);
         this._udev = null;
+        this._inputSettings = null;
+    }
+
+    _applyComposeKey(connected) {
+        const wanted = connected ? COMPOSE_WITH_KEYBOARD : COMPOSE_WITHOUT_KEYBOARD;
+        const current = this._inputSettings.get_strv("xkb-options");
+        const next = [...current.filter(option => !option.startsWith("compose:")), wanted];
+        if (next.join(",") !== current.join(","))
+            this._inputSettings.set_strv("xkb-options", next);
     }
 
     _isTargetKeyboardConnected() {
@@ -62,6 +80,8 @@ export default class KeyboardAutoSwitcher extends Extension {
 
     _check() {
         const connected = this._isTargetKeyboardConnected();
+        this._applyComposeKey(connected);
+
         const wantedId = connected ? LAYOUT_WITH_KEYBOARD : LAYOUT_WITHOUT_KEYBOARD;
 
         const manager = getInputSourceManager();
